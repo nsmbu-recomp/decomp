@@ -11,7 +11,7 @@ const StateID& stateIdAt(uintptr_t address)
     return *reinterpret_cast<const StateID*>(address);
 }
 
-constexpr uintptr_t kStateSaveSlotPage = 0x1022C184u;
+constexpr uintptr_t kStateChallengeSelect = 0x1022C184u;
 constexpr uintptr_t kStateAfterConfirm = 0x1022C1D0u;
 
 constexpr u32 kCourseTaskFactory = 0x0202B4C8u;
@@ -32,9 +32,9 @@ const u8* loadSaveRecord(SubjectMgr* mgr, u8 file)
 
 } // namespace
 
-void MenuTask0202B61C::enterSaveSlotPage()
+void MenuTask0202B61C::enterChallengeSelectState()
 {
-    mStateMethod.changeStateMethod(stateIdAt(kStateSaveSlotPage));
+    mStateMethod.changeStateMethod(stateIdAt(kStateChallengeSelect));
 }
 
 void MenuTask0202B61C::openChallengeSelect()
