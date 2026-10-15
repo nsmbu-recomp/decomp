@@ -12,6 +12,9 @@ public:
     // Address: 0x0297C4A8
     virtual ~MenuTask0202B61C();
 
+    // Address: 0x0297D268
+    void enterFileState();
+
     // Address: 0x0297D58C
     void enterChallengeSelectState();
 

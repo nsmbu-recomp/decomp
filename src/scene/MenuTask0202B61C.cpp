@@ -11,6 +11,7 @@ const StateID& stateIdAt(uintptr_t address)
     return *reinterpret_cast<const StateID*>(address);
 }
 
+constexpr uintptr_t kStateFile = 0x1022C0E4u;
 constexpr uintptr_t kStateChallengeSelect = 0x1022C184u;
 constexpr uintptr_t kStateAfterConfirm = 0x1022C1D0u;
 
@@ -31,6 +32,11 @@ const u8* loadSaveRecord(SubjectMgr* mgr, u8 file)
 }
 
 } // namespace
+
+void MenuTask0202B61C::enterFileState()
+{
+    mStateMethod.changeStateMethod(stateIdAt(kStateFile));
+}
 
 void MenuTask0202B61C::enterChallengeSelectState()
 {
