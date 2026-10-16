@@ -1,4 +1,4 @@
-#include <scene/MenuTask0202B61C.h>
+#include <scene/MenuScene.h>
 
 #include <game/SubjectMgr.h>
 #include <game_info/CourseInfo.h>
@@ -33,23 +33,23 @@ const u8* loadSaveRecord(SubjectMgr* mgr, u8 file)
 
 } // namespace
 
-void MenuTask0202B61C::enterFileState()
+void MenuScene::enterFileState()
 {
     mStateMethod.changeStateMethod(stateIdAt(kStateFile));
 }
 
-void MenuTask0202B61C::enterChallengeSelectState()
+void MenuScene::enterChallengeSelectState()
 {
     mStateMethod.changeStateMethod(stateIdAt(kStateChallengeSelect));
 }
 
-void MenuTask0202B61C::openChallengeSelect()
+void MenuScene::openChallengeSelect()
 {
     SubjectMgr::instance()->clearSubject();
     Scene::instance()->setNextScene(this, factoryId(kChallengeSelectFactory));
 }
 
-void MenuTask0202B61C::copySaveToCourseInfo()
+void MenuScene::copySaveToCourseInfo()
 {
     SubjectMgr* subject_mgr = SubjectMgr::instance();
     u8 file = subject_mgr->getSelectedFile();
@@ -59,7 +59,7 @@ void MenuTask0202B61C::copySaveToCourseInfo()
     course_info->setNextNextGotoNo(record[0x47]);
 }
 
-void MenuTask0202B61C::confirmFile()
+void MenuScene::confirmFile()
 {
     if (mGateSelect == 0)
         return;
