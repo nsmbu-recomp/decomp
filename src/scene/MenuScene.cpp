@@ -73,7 +73,7 @@ void MenuScene::confirmFile()
         copySaveToCourseInfo();
         CourseInfo::instance()->setNextSceneEnterType(1);
         Scene::instance()->setNextScene(this, factoryId(kCourseTaskFactory));
-        _1cad = 1;
+        mConfirmDone = 1;
         mStateMethod.changeStateMethod(stateIdAt(kStateAfterConfirm));
         return;
     }
@@ -81,6 +81,6 @@ void MenuScene::confirmFile()
     subject_mgr->clearSubject();
     CourseInfo::instance()->setNextSceneEnterType(1);
     Scene::instance()->setNextScene(this, factoryId(kChallengeSelectFactory));
-    _1cad = 1;
+    mConfirmDone = 1;
     mStateMethod.changeStateMethod(stateIdAt(kStateAfterConfirm));
 }
