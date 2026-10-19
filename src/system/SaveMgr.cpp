@@ -244,20 +244,61 @@ void copyPlayerSetupToMainGame_(const u8* record, u32 play_seconds)
 }
 
 // Address: 0x024C1FC4
-void applyPlayerEntryFlags_(FieldPlayerData* entry, u8 flag0, u8 flag1, u8 flag2, u8 flag3)
+void applyPlayerEntryFlags_(FieldGameData* game_data, u8 flag0, u8 flag1, u8 flag2, u8 flag3)
 {
-    (void)entry;
-    (void)flag0;
-    (void)flag1;
-    (void)flag2;
-    (void)flag3;
+    const u32 characters[cPlayerNum] = { flag0, flag1, flag2, flag3 };
+
+    game_data->orderEntriesByCharacter(characters);
 }
 
 // Address: 0x024C2230
 void enterMapFromGameData_(FieldGameData* game_data, s32 mode)
 {
-    (void)game_data;
     (void)mode;
+
+    u8* data = reinterpret_cast<u8*>(game_data);
+    CourseInfo* course_info = CourseInfo::instance();
+
+    game_data->setCoinNum(0);
+    *reinterpret_cast<u32*>(data + 0x138) = 0;
+    game_data->resetEntriesUnk30();
+
+    // The save device reported next world/course travels in CourseInfo.
+    u8 next_world = course_info->getNextWorldNo();
+    u8 next_course = course_info->getNextCourseNo();
+
+    s32 checkpoint = game_data->checkEnterCourse(next_world, next_course);
+
+    FieldGameMode::Mode game_mode = game_data->getGameMode().getMode();
+
+    if (game_mode == FieldGameMode::cCoinBattle || game_mode == FieldGameMode::cCoinEdit
+        || game_mode == FieldGameMode::cChallenge || checkpoint == -1)
+    {
+        game_data->clearCheckPoint();
+
+        *reinterpret_cast<u8*>(data + 0x13D) = 0xFF;
+        *reinterpret_cast<u8*>(data + 0x13E) = 0xFF;
+        *reinterpret_cast<u8*>(data + 0x13F) = 0xFF;
+
+        course_info->setNextFileNo(0);
+        course_info->setNextNextGotoNo(0xFF);
+        course_info->setNextSceneEnterType(1);
+    }
+    else
+    {
+        for (s32 i = 0; i < 3; ++i)
+            *reinterpret_cast<u8*>(data + 0x13D + i) = *reinterpret_cast<u8*>(data + 0x10 + i);
+
+        course_info->setNextFileNo(*reinterpret_cast<u8*>(data + 0x06));
+        course_info->setNextNextGotoNo(*reinterpret_cast<u8*>(data + 0x07));
+        course_info->setNextSceneEnterType(2);
+    }
+
+    for (s32 i = 0; i < 5; ++i)
+        *reinterpret_cast<u32*>(data + 0x144 + i * 4) = 0xE;
+
+    *reinterpret_cast<u8*>(data + 0x1A4) = 0;
+    *reinterpret_cast<u32*>(data + 0x164) = 0xE;
 }
 
 // Address: 0x029D9E80
@@ -662,10 +703,10 @@ void writeDefaultPlayerTable_(SaveMgr* mgr, u8* game_data)
 {
     (void)mgr;
 
-    static const u32 characters[cPlayerNum + 1] = { 1, 2, 3, 4, 1 };
-    static const u32 colors[cPlayerNum + 1] = { 1, 2, 3, 4, 1 };
+    static const u32 characters[cPlayerNum] = { 1, 2, 3, 4 };
+    static const u32 colors[cPlayerNum] = { 1, 2, 3, 4 };
 
-    for (u32 i = 0; i <= cPlayerNum; ++i)
+    for (u32 i = 0; i < cPlayerNum; ++i)
     {
         u8* entry = game_data + 0x14 + i * 0x48;
         *reinterpret_cast<u32*>(entry + 0x0C) = characters[i];
@@ -673,12 +714,12 @@ void writeDefaultPlayerTable_(SaveMgr* mgr, u8* game_data)
     }
 }
 
-// The inline copy in the apply path: entry character ids 0..4
+// The inline copy in the apply path: entry character ids 0..3
 void writeIndexPlayerTable_(u8* game_data)
 {
-    static const u32 characters[cPlayerNum + 1] = { 0, 1, 2, 3, 4 };
+    static const u32 characters[cPlayerNum] = { 0, 1, 2, 3 };
 
-    for (u32 i = 0; i <= cPlayerNum; ++i)
+    for (u32 i = 0; i < cPlayerNum; ++i)
     {
         u8* entry = game_data + 0x14 + i * 0x48;
         *reinterpret_cast<u32*>(entry + 0x0C) = characters[i];
@@ -726,7 +767,7 @@ void applySaveFile(SaveMgr* mgr, u8 file)
     else
         writeDefaultPlayerTable_(mgr, reinterpret_cast<u8*>(&game_data));
 
-    applyPlayerEntryFlags_(&game_data.getPlayerData(0), record[0x10], record[0x11], record[0x12], record[0x13]);
+    applyPlayerEntryFlags_(&game_data, record[0x10], record[0x11], record[0x12], record[0x13]);
 
     for (u32 i = 0; i < 4; ++i)
     {
@@ -737,20 +778,16 @@ void applySaveFile(SaveMgr* mgr, u8 file)
             lives = 99;
         entry.life_cnt = lives;
 
-        u32 mode = record[0x14 + i] & 0x7F;
-        entry.player_mode = static_cast<PlayerMode>(mode);
+        entry.player_mode = static_cast<PlayerMode>(record[0x14 + i]);
 
-        u32 cap = record[0x14 + i] >> 7;
-        *reinterpret_cast<u8*>(reinterpret_cast<u8*>(&entry) + 0x1E) = cap;
+        entry.has_star = false;
 
-        u32 extra = record[0x18 + i];
-        *reinterpret_cast<u32*>(reinterpret_cast<u8*>(&entry) + 0x3C) = extra;
+        entry._3c[0] = record[0x18 + i];
     }
 
-    u32 coins = record[0x02];
-    *reinterpret_cast<u32*>(reinterpret_cast<u8*>(&game_data) + 0x134) = coins;
+    game_data.setCoinNum(record[0x02]);
 
-    *reinterpret_cast<u32*>(reinterpret_cast<u8*>(&game_data) + 0x154) = record[0x4E];
+    *reinterpret_cast<u32*>(reinterpret_cast<u8*>(&game_data) + 0x164) = record[0x4E];
 
     u32 play_seconds = *reinterpret_cast<const u32*>(record + 0x30);
     if (static_cast<s32>(play_seconds) < 0)
