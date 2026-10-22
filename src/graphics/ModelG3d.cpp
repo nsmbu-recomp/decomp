@@ -628,6 +628,7 @@ void ModelG3d::calc()
     }
 }
 
+// Updates buffers for the GPU. CalcView returns immediately unless ModelObj byte +0x0D (view-dependent) is set; the blocks the draw uses are filled by CalcMtxBlock and CalcShape in calc().
 void ModelG3d::calcGPU(s32 view_index, const sead::Matrix34f& view_mtx, const sead::Matrix44f& proj_mtx, RenderObjRenderMgr* p_render_mgr)
 {
     mModelEx.CalcView(view_index, reinterpret_cast<const nw::g3d::math::Mtx34&>(view_mtx));
