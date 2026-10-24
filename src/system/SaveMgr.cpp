@@ -263,7 +263,8 @@ void enterMapFromGameData_(FieldGameData* game_data, s32 mode)
     *reinterpret_cast<u32*>(data + 0x138) = 0;
     game_data->resetEntriesUnk30();
 
-    // The save device reported next world/course travels in CourseInfo.
+    // Next world/course come from CourseInfo (set by course-out / menu).
+    // Checkpoint itself is only filled by the save map-enter path (0x0250C76C).
     u8 next_world = course_info->getNextWorldNo();
     u8 next_course = course_info->getNextCourseNo();
 
