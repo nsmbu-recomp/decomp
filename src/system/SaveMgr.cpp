@@ -383,6 +383,14 @@ void SaveMgr::startReadPersonalSavedata()
     signalSaveThread_(this, 5);
 }
 
+// Address: 0x029D8478
+void SaveMgr::clearQuickAndWrite(u8 file)
+{
+    u8* quick = savedataAt(this, kSavedataBackupBase + file * kSavedataRecordSize);
+    std::memset(quick, 0, kSavedataRecordSize);
+    startWriteGame();
+}
+
 // Address: 0x029D8304
 void SaveMgr::startWriteGame()
 {
@@ -734,6 +742,25 @@ void sanitizeRecord_(SaveMgr* mgr, u8* record)
     (void)record;
 }
 
+// Address: 0x029D7184
+// File-select course flags. Slot builders 0x02631B50, 0x0263AD40, and 0x02641974
+// call this with the file index. The copy source is the main record
+// (savedata+0x10+file*0x204): 123 course-flag bytes at record+0x6B and the
+// 0x3E death counters after them, into *(0x101E7D7C)+0x31C. Those builders
+// already take lives from the quick record at +0xC28 when its exists byte is
+// set, and show 5 when that lives byte is 0. They do not read the
+// world/section/node triple. The slot's map picture is these flags.
+// After the call, lbz rd, 0x2E(savedata+file*0x204) reads main record+0x1E
+// and the popcount is what the slot keeps. 0x02641974 pane index 6 stays on
+// the main record even when quick exists. That pane is the file-copy preview:
+// 0x029D83FC copies the main record and clears the destination quick record.
+void copyFileSelectCourseFlags_(SaveMgr* mgr, u32 file, u8* out_bits)
+{
+    (void)mgr;
+    (void)file;
+    (void)out_bits;
+}
+
 // Address: 0x029D7648
 void applySaveFile(SaveMgr* mgr, u8 file)
 {
@@ -799,6 +826,12 @@ void applySaveFile(SaveMgr* mgr, u8 file)
     *reinterpret_cast<u32*>(reinterpret_cast<u8*>(&game_data) + 0x138) = play_seconds;
     copyPlayerSetupToMainGame_(record, play_seconds);
 }
+
+// Address: 0x02987200
+// Opening a file runs this before continueFirstSave. It calls
+// SaveMgr::clearQuickAndWrite for header.last_file, then sets byte +0x9B3D.
+// continueFirstSave only looks at the story record, so the quick save has to
+// already be in that record or the next launch loads the older story.
 
 // Address: 0x029872BC
 void continueFirstSave(sead::TaskBase* src_task)
