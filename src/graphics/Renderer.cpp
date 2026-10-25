@@ -29,58 +29,80 @@ void Renderer::setViewBoundBox(const sead::BoundBox2f& box)
     mViewBoundBox.setMax(box.getMax());
 }
 
+// Address: 0x024FA76C
 void Renderer::calcForAreaTask()
 {
+    const f32 min_x = mViewBoundBox.getMin().x;
+    const f32 min_y = mViewBoundBox.getMin().y;
+    const f32 max_x = mViewBoundBox.getMax().x;
+    const f32 max_y = mViewBoundBox.getMax().y;
+
     mProjection3D.setNear(1.0f);
     mProjection3D.setFar(20000.0f);
-
-    mProjection3D.setTBLR(
-        -mViewBoundBox.getMin().y,
-        -mViewBoundBox.getMax().y,
-         mViewBoundBox.getMin().x,
-         mViewBoundBox.getMax().x
-    );
+    mProjection3D.setTBLR(-min_y, -max_y, min_x, max_x);
 
     mCamera3D.getPos().set(0.0f, 0.0f, 10000.0f);
-
     mCamera3D.getAt().set(0.0f, 0.0f, -1.0f);
-
     mCamera3D.getUp().set(sead::Vector3f::ey);
     mCamera3D.getUp().normalize();
-
     mCamera3D.updateViewMatrix();
 
-    agl::lyr::Renderer::instance()->getLayer(AreaLayerMgr::cLayer_3D)->setProjection(&mProjection3D);
-    agl::lyr::Renderer::instance()->getLayer(AreaLayerMgr::cLayer_3D)->setCamera(&mCamera3D);
+    agl::lyr::Renderer* p_agl_renderer = agl::lyr::Renderer::instance();
+    const uintptr_t agl_base = reinterpret_cast<uintptr_t>(p_agl_renderer);
 
-    agl::lyr::Renderer::instance()->getLayer(AreaLayerMgr::cLayer_3D_DRC)->setProjection(&mProjection3D);
-    agl::lyr::Renderer::instance()->getLayer(AreaLayerMgr::cLayer_3D_DRC)->setCamera(&mCamera3D);
+    u32 layer_count = *reinterpret_cast<const u32*>(agl_base + 0xda8);
+    uintptr_t layer_table = *reinterpret_cast<uintptr_t*>(agl_base + 0xdac);
+    uintptr_t layer_entry = layer_table;
+    if (layer_count > 9)
+        layer_entry += 0x24;
+    agl::lyr::Layer* p_layer_3d = *reinterpret_cast<agl::lyr::Layer**>(layer_entry);
+    p_layer_3d->setProjection(&mProjection3D);
 
-    agl::lyr::Layer* p_final_koopa_layer = agl::lyr::Renderer::instance()->getLayer(AreaLayerMgr::cLayer_FinalKoopa);
+    layer_count = *reinterpret_cast<const u32*>(agl_base + 0xda8);
+    layer_table = *reinterpret_cast<uintptr_t*>(agl_base + 0xdac);
+    layer_entry = layer_table;
+    if (layer_count > 9)
+        layer_entry += 0x24;
+    p_layer_3d = *reinterpret_cast<agl::lyr::Layer**>(layer_entry);
+    p_layer_3d->setCamera(&mCamera3D);
+
+    layer_count = *reinterpret_cast<const u32*>(agl_base + 0xda8);
+    layer_table = *reinterpret_cast<uintptr_t*>(agl_base + 0xdac);
+    layer_entry = layer_table;
+    if (layer_count > 0x17)
+        layer_entry += 0x5c;
+    agl::lyr::Layer* p_layer_3d_drc = *reinterpret_cast<agl::lyr::Layer**>(layer_entry);
+    p_layer_3d_drc->setProjection(&mProjection3D);
+
+    layer_count = *reinterpret_cast<const u32*>(agl_base + 0xda8);
+    layer_table = *reinterpret_cast<uintptr_t*>(agl_base + 0xdac);
+    layer_entry = layer_table;
+    if (layer_count > 0x17)
+        layer_entry += 0x5c;
+    p_layer_3d_drc = *reinterpret_cast<agl::lyr::Layer**>(layer_entry);
+    p_layer_3d_drc->setCamera(&mCamera3D);
+
+    layer_count = *reinterpret_cast<const u32*>(agl_base + 0xda8);
+    layer_table = *reinterpret_cast<uintptr_t*>(agl_base + 0xdac);
+    layer_entry = layer_table;
+    if (layer_count > 8)
+        layer_entry += 0x20;
+    agl::lyr::Layer* p_final_koopa_layer = *reinterpret_cast<agl::lyr::Layer**>(layer_entry);
     if (p_final_koopa_layer != nullptr)
     {
+        const f32 center_x = (min_x + max_x) * 0.5f;
+        const f32 center_y = (-min_y - max_y) * 0.5f;
+        const f32 half_size_x = (max_x - min_x) * 0.5f;
+        const f32 half_size_y = (max_y - min_y) * 0.5f;
+
         mProjectionFinalKoopa.setNear(1.0f);
         mProjectionFinalKoopa.setFar(20000.0f);
-
-        f32 center_x = ( mViewBoundBox.getMin().x + mViewBoundBox.getMax().x) * 0.5f;
-        f32 center_y = (-mViewBoundBox.getMin().y - mViewBoundBox.getMax().y) * 0.5f;
-        f32 half_size_x = (mViewBoundBox.getMax().x - mViewBoundBox.getMin().x) * 0.5f;
-        f32 half_size_y = (mViewBoundBox.getMax().y - mViewBoundBox.getMin().y) * 0.5f;
-
-        mProjectionFinalKoopa.setTBLR(
-             half_size_y,
-            -half_size_y,
-            -half_size_x,
-             half_size_x
-        );
+        mProjectionFinalKoopa.setTBLR(half_size_y, -half_size_y, -half_size_x, half_size_x);
 
         mCameraFinalKoopa.getPos().set(center_x, center_y, 10000.0f);
-
         mCameraFinalKoopa.getAt().set(center_x, center_y, -1.0f);
-
         mCameraFinalKoopa.getUp().set(sead::Vector3f::ey);
         mCameraFinalKoopa.getUp().normalize();
-
         mCameraFinalKoopa.updateViewMatrix();
 
         p_final_koopa_layer->setProjection(&mProjectionFinalKoopa);

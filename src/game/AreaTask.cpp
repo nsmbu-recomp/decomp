@@ -80,3 +80,9 @@ void AreaTask::prepareCourseOutEnter(u32 next_goto_key)
     // site 0x024B8324
     setCourseOut();
 }
+
+// Address: 0x025CF020
+u32 AreaTask::getCourseOutHudFlag()
+{
+    return instance()->mCourseOutKind != 1u;
+}

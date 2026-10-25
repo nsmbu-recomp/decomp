@@ -1,7 +1,9 @@
 #include <system/SaveMgr.h>
 
 #include <game/FieldGame.h>
+#include <game/SubjectMgr.h>
 #include <game_info/CourseInfo.h>
+#include <system/MainGame.h>
 #include <player/PlayerEnum.h>
 #include <scene/Scene.h>
 #include <system/MainGame.h>
@@ -759,6 +761,53 @@ void copyFileSelectCourseFlags_(SaveMgr* mgr, u32 file, u8* out_bits)
     (void)mgr;
     (void)file;
     (void)out_bits;
+}
+
+// Address: 0x024CD7EC
+void resetMainGameCourseSelectBits_(u8* course_bits)
+{
+    (void)course_bits;
+}
+
+// Address: 0x024BBD24
+void mergeCourseFlagBytes_(u8* dst, const u8* src0, const u8* src1, const u8* src2)
+{
+    for (u32 index = 0; index < 0x7B; ++index)
+        dst[index] = src0[index] | src1[index] | src2[index];
+}
+
+// Address: 0x029CFB54
+void syncCourseFlagsFromMainRecords_(u8* record0, u8* record1, u8* record2)
+{
+    MainGame* main_game = MainGame::instance();
+    u8* main = reinterpret_cast<u8*>(main_game);
+
+    mergeCourseFlagBytes_(main + 0x31C, record0 + 0x6B, record1 + 0x6B, record2 + 0x6B);
+    resetMainGameCourseSelectBits_(main + 0x34);
+
+    main[0x21DFA] = 0;
+    main[0x21DFB] = 0;
+    main[0x82E] = 0;
+    main[0x82F] = 0;
+
+    SubjectMgr::instance()->clearSubject();
+}
+
+// Address: 0x029D7CC8
+void writeDefaultGameDataToRecords_(SaveMgr* mgr)
+{
+    u8* record0 = savedataAt(mgr, kSavedataMainRecordBase);
+    u8* record1 = savedataAt(mgr, kSavedataMainRecordBase + kSavedataRecordSize);
+    u8* record2 = savedataAt(mgr, kSavedataMainRecordBase + 2 * kSavedataRecordSize);
+
+    FieldGame* field_game = FieldGame::instance();
+    FieldGameData& game_data = field_game->getGameData();
+    new (&game_data) FieldGameData();
+
+    *reinterpret_cast<u32*>(reinterpret_cast<u8*>(field_game) + 0x16C) = 4;
+
+    resetCourseInfo_();
+    syncCourseFlagsFromMainRecords_(record0, record1, record2);
 }
 
 // Address: 0x029D7648
