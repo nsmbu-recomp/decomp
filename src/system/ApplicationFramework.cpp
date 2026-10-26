@@ -23,8 +23,8 @@
 ApplicationFramework::ApplicationFramework(const CreateArg& arg)
     : sead::GameFrameworkCafe(arg)
     , mFirstSwapDone(false)
-    , _38C(1)
-    , _390(0)
+    , mCalcPassCount(1)
+    , mSkippedCalcCount(0)
     , mProcUIStatus(PROCUI_STATUS_FOREGROUND)
 {
 }
@@ -154,7 +154,7 @@ void ApplicationFramework::procCalc_()
 {
     LayerMgr* layer_mgr = LayerMgr::instance();
 
-    if (_38C > 0)
+    if (mCalcPassCount > 0)
     {
         if (layer_mgr != nullptr)
             layer_mgr->clearRenderMgr();
@@ -162,15 +162,15 @@ void ApplicationFramework::procCalc_()
         sead::GameFrameworkCafe::procCalc_();
 
         sead::MethodTreeNode* app_calc_node = getMethodTreeMgr()->getRootMethodTreeNode(1);
-        for (s32 i = 1; i < _38C; i++)
+        for (s32 i = 1; i < mCalcPassCount; i++)
             app_calc_node->call();
     }
     else
     {
-        s32 v = _390 + 1;
-        if (v < -_38C)
+        s32 v = mSkippedCalcCount + 1;
+        if (v < -mCalcPassCount)
         {
-            _390 = v;
+            mSkippedCalcCount = v;
             return;
         }
 
@@ -179,7 +179,7 @@ void ApplicationFramework::procCalc_()
 
         sead::GameFrameworkCafe::procCalc_();
 
-        _390 = 0;
+        mSkippedCalcCount = 0;
     }
 
     if (layer_mgr != nullptr)
