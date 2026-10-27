@@ -45,10 +45,17 @@ The previous-frame box is `+0x38`.
 The fixed-size box is `+0x58`.
 Background edges are `+0x88` and `+0x90`, and the previous background box is `+0x98`.
 The same update can run again after it rewrites the screen box, so a box whose width/height is already past 16:9 stays as it is.
+The first of those two updates leaves the scalar window at 16:9.
+The rewrite then builds the game's camera, and the second update widens that camera.
 The title parade and other screen-follow placement read the scalar window, so a wider left and right slide that parade toward the new right edge.
 `CourseInfo::isTitle` is `0x024D3940`.
 It is true when the course kind at `CourseInfo + 0x11` is `0x26`.
 `CourseInfo::sInstance` is `0x101D18EC`.
-A course widens the screen box, the zoom box, and the scalar window.
-The title course does not, so the parade stays centered.
+A course widens the screen box, the zoom box, the scalar window, and the background box.
+The widen pivots on the average X of players inside that 16:9 screen box.
+Each player's fraction of the width stays the same as 16:9.
+The scalar center X becomes the midpoint of the widened left and right.
+With no player inside the box, the pivot stays the old center.
+The title course does not widen the screen box, so the parade stays centered.
+Its background box still widens around its own center.
 Background parts spawn from the background edges, and those edges widen on the title course too.
