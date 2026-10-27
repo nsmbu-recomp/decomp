@@ -12,6 +12,11 @@ Ctor is `0x029C4DC0`-family; it sets `mCalcPassCount = 1` and `mSkippedCalcCount
 `sead::GameFrameworkCafe::runImpl_` waits for the root task, stamps `mLastFrameBegin`, then `mainLoop_`.
 `mainLoop_` forever calls `procFrame_`.
 
+Addresses (USA v1.3.0): `runImpl_` `0x02A02EB4`, `mainLoop_` `0x02A02F48`, `procFrame_` `0x02A031A0`, base `procDraw_` `0x02A0358C`, `waitForNextFrame_` `0x02A03748`, base `swapBuffer_` `0x02A03798`.
+
+The overridable steps are a static dispatch table at `0x10185280`, held at `this+0x24`, not a vtable.
+Slots: `+0xD4` `procDraw_`, `+0xDC` `procCalc_`, `+0xE4` `waitForNextFrame_`, `+0xEC` `swapBuffer_`.
+
 Each `procFrame_`:
 
 1. Lock draw context.
@@ -20,26 +25,33 @@ Each `procFrame_`:
 4. `procCalc_` (task beforeCalc + DualScreen method-tree calc, or the game override).
 5. `procReset_`.
 6. `swapBuffer_` → `GX2SwapScanBuffers` when display state is Show, then `GX2DrawDone`.
-7. Unlock.
-8. Store `mFrameSpan = mLastFrameBegin.diffToNow()` and stamp `mLastFrameBegin` again.
-9. `waitForNextFrame_`.
+7. A GPU-time updater at `0x02A02F74`.
+8. Unlock.
+9. Store `mFrameSpan = mLastFrameBegin.diffToNow()` and stamp `mLastFrameBegin` again.
+10. `waitForNextFrame_`.
+
+`procDraw_`, `procCalc_`, `procReset_`, `swapBuffer_`, and `waitForNextFrame_` are dispatch-table slots `+0xD4`, `+0xDC`, `+0x6C`, `+0xEC`, and `+0xE4`.
+The `procReset_` name is inferred: the `+0x6C` body drains a callback list and clears one byte.
+`mFrameSpan` is `+0x70` (a 64-bit stamp) and `mLastFrameBegin` is `+0x78`.
+`mFrameSpan` is written at `0x02A03260` from `diffToNow(this+0x78)` before the new stamp at `0x02A03278`.
+`calcFps` has no reader in USA v1.3.0: neither the sead framework code nor the app overrides load `+0x70` or `+0x74` from the framework object.
 
 `waitForNextFrame_` runs only when `CreateArg::wait_vblank` is non-zero (default `1`).
 It loops `GX2WaitForVsync` + `GX2GetSwapStatus` until `flipCount >= swapCount`.
 `initializeGraphicsSystem` also calls `GX2SetSwapInterval(wait_vblank)`.
 So one guest frame is one TV vsync by default (~60 Hz).
 
-`mFlag` bit 0 is a half-frame mode in sead:
-with bit 0 set, alternate `procFrame_` calls skip draw and skip swap (bit 1 toggles).
-NSMBU leaves that flag clear in normal play.
-
-`calcFps()` is `1s / mFrameSpan`.
-Nothing in the game path feeds `mFrameSpan` into physics or animation.
+`mFlag` is `+0x6C`, and bit 0 is a half-frame mode in sead:
+with bit 0 set, alternate `procFrame_` calls skip `swapBuffer_` and the `0x02A02F74` updater (the `xori` at `0x02A03298` toggles bit 1).
+Base `procDraw_` (`0x02A0358C`) and base `swapBuffer_` test the same pair and skip the screen draws.
+The app `procDraw_` override (`0x029C4FE4`) does not test it.
+The ctor zeroes `+0x6C`, and no writer of bit 0 was found, so NSMBU leaves that flag clear in normal play.
 
 ## ApplicationFramework overrides
 
 Addresses (USA v1.3.0):
 
+- `swapBuffer_` `0x029C53F8` (app override), base `0x02A03798`
 - `procDraw_` `0x029C4FE4`
 - `calc_` `0x029C5104`
 - `procCalc_` `0x029C52CC`
@@ -50,19 +62,24 @@ Addresses (USA v1.3.0):
 - If `mCalcPassCount <= 0`: count skips in `mSkippedCalcCount` until `skipped + 1 >= -mCalcPassCount`, then run one full calc and reset the skip counter.
   Default is `1` (one calc per frame).
   No in-tree writer of a non-default value was found yet; the fields are the stock multi-step / skip hooks.
+- `calcDL` and `calc_` are skipped when `LayerMgr::sInstance` (`*(0x101D2BE4)`) is null.
 
 `calc_` waits on `GX2DrawDone`, copies the TV/DRC framebuffers to display buffers, flushes, and runs `LayerMgr::calcParallelExec`.
 Hold / in-between port passes call only this path so the task tree does not advance.
 
 `procDraw_` draws TV and DRC method trees (or, in the GameFrame rewrite, the root task's draw nodes).
+The app override calls dispatch-table slot `+0xAC` (`0x029C5734`) once per screen, and the base `0x02A0358C` calls `0x02A032C8` / `0x02A03394` instead.
 The port's 30 fps-style "no draw" comment on the hook refers to skip/hold paths that return before the original body, not to a native 30 Hz title rate.
 NSMBU's native rate is 60 steps/s.
 
-`swapBuffer_` adds first-swap TV/DRC enable and ProcUI / HBM handling on top of `GameFrameworkCafe::swapBuffer_`.
+`swapBuffer_` adds first-swap TV/DRC enable and ProcUI / HBM handling on top of `GameFrameworkCafe::swapBuffer_` (`0x02A03798`).
+The first-swap flag is the byte `+0x388`, and the ProcUI result is kept at `+0x394`.
+A `3` from `ProcUIProcessMessages` runs `ProcUIShutdown` and exits through `__PPCExit`.
 
 ## Per-step animation, not delta time
 
 `FrameCtrl::play` (`0x024DEF04`) does `mFrame += mRate` once per call.
+`mFrame` is at `+0x10` and `mRate` at `+0x14`.
 Rates are authored in frames per logic step (often `1.0f`).
 Player, enemy, and layout code assume one step equals one sixtieth of a second.
 
