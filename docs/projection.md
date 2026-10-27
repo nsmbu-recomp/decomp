@@ -17,3 +17,10 @@ Field of view is stored at object offset 156, and aspect at offset 172.
 `DrawInfo::LoadMtxModelView` is `0x02AB9C2C`.
 The base pane vtable is `0x101B93D4`.
 `CalculateMtx` is slot `0x84` and `Draw` is slot `0x8C`.
+
+`BgScrollMgr::sInstance` is `0x101E7C54`.
+The screen update is `0x029A6170`.
+It writes the 1280-wide screen window: left at `+0x70`, center X at `+0x74`, and right at `+0x78`.
+Background edges are `+0x88` and `+0x90`.
+The title parade and other screen-follow placement read the screen window, so a wider left and right slide that parade toward the new right edge.
+Background parts spawn from the background edges.
