@@ -36,11 +36,19 @@ Panes parked outside the 16:9 frame stay undrawn on both targets, or they show u
 
 `BgScrollMgr::sInstance` is `0x101E7C54`.
 The screen update is `0x029A6170`.
-It writes the 1280-wide screen window: left at `+0x70`, center X at `+0x74`, and right at `+0x78`.
-Background edges are `+0x88` and `+0x90`.
-The title parade and other screen-follow placement read the screen window, so a wider left and right slide that parade toward the new right edge.
+It copies the screen box into the scalar window: left at `+0x70`, center X at `+0x74`, and right at `+0x78`.
+The screen box is `+0x28` (min X), `+0x2C` (min Y), `+0x30` (max X), and `+0x34` (max Y).
+`ActorCullUtil::screenCullCheck` (`0x02008918`) tests that box.
+The padded check at `0x02008838` tests the zoom box at `+0x48`.
+`Actor::drawCullCheck_` uses the screen box, so a 16:9 box hides actors that the wide camera can already see.
+The previous-frame box is `+0x38`.
+The fixed-size box is `+0x58`.
+Background edges are `+0x88` and `+0x90`, and the previous background box is `+0x98`.
+The same update can run again after it rewrites the screen box, so a box whose width/height is already past 16:9 stays as it is.
+The title parade and other screen-follow placement read the scalar window, so a wider left and right slide that parade toward the new right edge.
 `CourseInfo::isTitle` is `0x024D3940`.
 It is true when the course kind at `CourseInfo + 0x11` is `0x26`.
 `CourseInfo::sInstance` is `0x101D18EC`.
-Enemies, blocks, and bushes spawn from that same screen window, so a course widens it and the title course does not.
-Background parts spawn from the background edges.
+A course widens the screen box, the zoom box, and the scalar window.
+The title course does not, so the parade stays centered.
+Background parts spawn from the background edges, and those edges widen on the title course too.
