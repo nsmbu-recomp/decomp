@@ -17,6 +17,17 @@ Field of view is stored at object offset 156, and aspect at offset 172.
 `DrawInfo::LoadMtxModelView` is `0x02AB9C2C`.
 The base pane vtable is `0x101B93D4`.
 `CalculateMtx` is slot `0x84` and `Draw` is slot `0x8C`.
+`DrawSelf` is slot `0x94`.
+The base pane's `DrawSelf` is `0x02ABCB84` and does nothing.
+Window panes such as `W_Base_00` use `DrawSelf` `0x02AC30A4`.
+Text panes such as `T_Btn_00` use `DrawSelf` `0x02ABE3B8`.
+
+The global matrix at pane `+0x48` is a 3×4.
+The first eight floats are the X row and the Y row.
+The fourth float of each row is that axis's translation.
+`0x02ABE3B8` multiplies the projection stored at the start of `DrawInfo`.
+Edge button pictures already use the widescreen projection.
+That text multiply was still using the 16:9 projection, so the label sat past the button and was clipped at the screen edge.
 
 `BgScrollMgr::sInstance` is `0x101E7C54`.
 The screen update is `0x029A6170`.
