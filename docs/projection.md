@@ -30,12 +30,17 @@ Edge button pictures already use the widescreen projection.
 That text multiply was still using the 16:9 projection, so the label sat past the button and was clipped at the screen edge.
 
 `GameScene` is drawn to the TV and to the gamepad.
-The gamepad draw marks that layout as off the TV, and the next `CalculateMtx` rebuilds `N_ZankiAll_00` and `N_TimerScore_00` at their 16:9 translations.
-The TV draw puts the edge shift back onto the global translation while the color target is wide.
+A gamepad draw must not clear the TV flag, or the next `CalculateMtx` rebuilds `N_ZankiAll_00` and `N_TimerScore_00` at their 16:9 translations and the counters jump.
+Panes parked outside the 16:9 frame stay undrawn on both targets, or they show up in the side strips.
+`N_Coin_00` is also the coin row in `PointGet`, so an edge pane has to sit on the screen edge and not only share that name.
 
 `BgScrollMgr::sInstance` is `0x101E7C54`.
 The screen update is `0x029A6170`.
 It writes the 1280-wide screen window: left at `+0x70`, center X at `+0x74`, and right at `+0x78`.
 Background edges are `+0x88` and `+0x90`.
 The title parade and other screen-follow placement read the screen window, so a wider left and right slide that parade toward the new right edge.
+`CourseInfo::isTitle` is `0x024D3940`.
+It is true when the course kind at `CourseInfo + 0x11` is `0x26`.
+`CourseInfo::sInstance` is `0x101D18EC`.
+Enemies, blocks, and bushes spawn from that same screen window, so a course widens it and the title course does not.
 Background parts spawn from the background edges.
