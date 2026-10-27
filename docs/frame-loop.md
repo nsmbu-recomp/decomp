@@ -19,16 +19,22 @@ Slots: `+0xD4` `procDraw_`, `+0xDC` `procCalc_`, `+0xE4` `waitForNextFrame_`, `+
 
 Each `procFrame_`:
 
-1. Lock draw context.
-2. `TaskMgr::afterCalc` for the previous frame.
+1. `sead::Graphics::lockDrawContext` (`0x02A07A54`).
+2. `sead::TaskMgr::afterCalc` (`0x02A0183C`, a `b` thunk onto `0x02A01730`) for the previous frame.
 3. `procDraw_` (TV then DRC method trees, or the game override).
 4. `procCalc_` (task beforeCalc + DualScreen method-tree calc, or the game override).
 5. `procReset_`.
 6. `swapBuffer_` → `GX2SwapScanBuffers` when display state is Show, then `GX2DrawDone`.
-7. A GPU-time updater at `0x02A02F74`.
-8. Unlock.
+7. `sead::GameFrameworkCafe::gpuMesureEnd_` (`0x02A02F74`).
+8. `sead::Graphics::unlockDrawContext` (`0x02A07AF8`).
 9. Store `mFrameSpan = mLastFrameBegin.diffToNow()` and stamp `mLastFrameBegin` again.
 10. `waitForNextFrame_`.
+
+Step 1/8 are confirmed by body: both read the Cafe thread-specific slot id at `*(0x101E80A0)+0x20`, then `OSGetThreadSpecific`.
+`lockDrawContext` compares the result against `+0x10`, bumps the `+0x14` refcount, and otherwise locks the `CriticalSection` at `+0x18` before the `lockDrawContextImpl` virtual (`vtable+0x8C`).
+`unlockDrawContext` decrements `+0x14` and, at zero, clears `+0x10`, runs `unlockDrawContextImpl` (`vtable+0x90`), and unlocks `+0x18`.
+Step 2 is confirmed by body: it calls `MethodTreeNode::call` (`0x029FF618`) on `TaskMgr+0x14C` (`mCalcDestructionTreeNode`), then walks the destroyable list invoking `vtable+0x30`.
+Step 7 is confirmed by body: `DCInvalidateRange(mGpuCounters, 0x20)`, then `mDrawOrder` at `+0xC0` selects the TV/DRC `GX2GPUTimeToCPUTime` pairs.
 
 `procDraw_`, `procCalc_`, `procReset_`, `swapBuffer_`, and `waitForNextFrame_` are dispatch-table slots `+0xD4`, `+0xDC`, `+0x6C`, `+0xEC`, and `+0xE4`.
 The `procReset_` name is inferred: the `+0x6C` body drains a callback list and clears one byte.
@@ -67,10 +73,37 @@ Addresses (USA v1.3.0):
 `calc_` waits on `GX2DrawDone`, copies the TV/DRC framebuffers to display buffers, flushes, and runs `LayerMgr::calcParallelExec`.
 Hold / in-between port passes call only this path so the task tree does not advance.
 
-`procDraw_` draws TV and DRC method trees (or, in the GameFrame rewrite, the root task's draw nodes).
-The app override calls dispatch-table slot `+0xAC` (`0x029C5734`) once per screen, and the base `0x02A0358C` calls `0x02A032C8` / `0x02A03394` instead.
+`procDraw_` draws the TV then the DRC method tree.
+The app override (`0x029C4FE4`) calls `DualScreenMethodTreeMgr::drawTop` (`0x029FD944` → `mTopRootDrawNode.call()`, node `+0x13C`), then `drawBtm` (`0x029FD94C` → `mBtmRootDrawNode.call()`, node `+0x28C`).
+It also calls dispatch-table slot `+0xAC` (`0x029C5734`) once after each of those two calls, but that body is `li r3, 0; blr` — a no-op stub.
+The base table `0x101906D4` puts the "a pure virtual function was called" panic (`0x02AFA5E8`) in that slot, so the app override only silences it; it does not exec a method tree.
+`GX2SetContextState` (`0x029C50E4`, on `*(0x101F8000)+0x134`) and `GX2Flush` (`0x029C50E8`) run after both draws, not between them.
+The base `procDraw_` (`0x02A0358C`) calls `0x02A032C8` / `0x02A03394` instead.
 The port's 30 fps-style "no draw" comment on the hook refers to skip/hold paths that return before the original body, not to a native 30 Hz title rate.
 NSMBU's native rate is 60 steps/s.
+
+### Method-tree layout
+
+`this+0x1C` is the `sead::DualScreenMethodTreeMgr` (ctor `0x029FC8BC`, size `0x3E4`, vtable `0x1018FEB8`).
+It is `sead::MethodTreeMgr` (`0x40`: vtable + `CriticalSection`) followed by eleven `sead::MethodTreeNode` (`0x54` each), then the two `Screen` fields.
+Node names come from the ctor's `INamable` setup and are `.rodata` strings at `0x1018FDE0`–`0x1018FEA4`:
+
+- `+0x040` `sead::RootCalc`
+- `+0x094` `sead::SysCalc`
+- `+0x0E8` `sead::AppCalc`
+- `+0x13C` `sead::TopRootDraw`
+- `+0x190` `sead::TopSysDraw`
+- `+0x1E4` `sead::TopAppDraw`
+- `+0x238` `sead::TopAppDrawFinal`
+- `+0x28C` `sead::BtmRootDraw`
+- `+0x2E0` `sead::BtmSysDraw`
+- `+0x334` `sead::BtmAppDraw`
+- `+0x388` `sead::BtmAppDrawFinal`
+
+`0x029FF490` is `appendChild`.
+Tree: `RootCalc` ← {`SysCalc`, `AppCalc`}; `TopRootDraw` ← {`TopAppDraw`, `TopAppDrawFinal`, `TopSysDraw`}; `BtmRootDraw` ← {`BtmAppDraw`, `BtmAppDrawFinal`, `BtmSysDraw`}.
+`0x029FF618` is `MethodTreeNode::call`: it locks `node+0x3C`, runs the recursive walk `0x029FF588` (skip when `mPauseFlag` `+0x44` bit 0 is set, else invoke the `+0x2C` delegate, then recurse), and unlocks.
+`0x029FD93C` is `calc` → `RootCalc.call()` at `+0x40`.
 
 `swapBuffer_` adds first-swap TV/DRC enable and ProcUI / HBM handling on top of `GameFrameworkCafe::swapBuffer_` (`0x02A03798`).
 The first-swap flag is the byte `+0x388`, and the ProcUI result is kept at `+0x394`.

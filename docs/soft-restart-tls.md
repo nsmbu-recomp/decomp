@@ -46,6 +46,14 @@ A soft restart must:
    - `AudAudioPlayer::initialize` (`0x029B21A0`) is a no-op: it branches to `0x029E6EA0`, which is `blr`, and nothing calls it (`0x029B21A0` appears only as a method-table slot at `.rodata 0x1017C1BC`).
      `SndAudioMgr::loadData` (`0x029B7548`), `startSound` (`0x029B5434`), and `startSoundImpl` (`0x029B6B10`) do not install the table: a call-graph sweep from each finds no path to the Setup chain.
    - `startSound` has a single static caller, `SndAudioMgr::startSystemSe` (`0x029B54C0`), which is reached from gameplay.
+   - The `bctrl` at `0x029B5460` in `startSound` is `startSoundImpl`, and the interface table is `0x1017C814`.
+     `startSound` loads `*(this+0x3D0)` into `r12`, loads `0x24(r12)` into `r0`, then `bctrl` with `r3 = this`, `r4 = handle`, `r5 = label`.
+     The ctor `0x029B393C` allocates `0x3D4` bytes and materialises `0x1017C814` as `lis r0, 0x1018` + `addic r0, r0, -0x37ec`, then stores it at `+0x3D0`.
+     Entries are 8 bytes with the function pointer at `+4`: `+0x04` = `0`, `+0x0C` = `initialize` (`0x029B41AC`), `+0x14` = `calc` (`0x029B4FFC`), `+0x1C` = the deleted `vf1C` (the panic `0x02AFA5E8`), `+0x24` = `startSoundImpl` (`0x029B6B10`).
+     That is exactly the virtual order in `include/sound/SndAudioMgr.h`, which already records `vtbl Address: 0x1017C814`.
+     An earlier note wrote the table as `0x1018C814`; the correct address is `0x1017C814`.
+     `src/sound/SndAudioMgr.cpp` is the decompiled `startSound` and `startSystemSe`.
+     `AudAudioMgr` is not polymorphic (its ctor `0x029B1AAC` sets no vptr), so `+0x3D0` is the only method table `SndAudioMgr` has.
      The audio-init root `0x029E8324` is table-dispatched, so a fixed order between the two cannot be proven statically; that part of the early-boot claim is unproven, not confirmed.
    - The runtime skip hooks on `0x029B3C5C` / `0x029B7448` no longer exist, so they cannot be papering over a null table today.
    - Soft restart with real audio can leave the table null through early boot while startSound / isSndPlaying / AX app-frame callbacks already run; cold boot and soft restart with `NSMBU_NO_AUDIO=1` (AX waits for Audio* threads to park before starting the frame thread) succeed.
