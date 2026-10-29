@@ -44,14 +44,21 @@ Screens such as `AttentionScreen` and `ChangePlayerNum` follow the same shape:
 
 State IDs are guest globals (for example `AttentionScreen::StateID_In` at `0x1020B588`).
 
-## CommonWindowMgr (modal UI)
+## Pause menu and CommonWindowMgr (modal UI)
 
-Singleton disposer at `0x024BC444` / `0x024BC874`.
-Holds one `CommonWindow` instance and routes pad input through `processPadTrig_OneButton` / `TwoButtons`.
-`open` sets `CommonWindow::Type` (60 enumerated dialog kinds in `CommonWindow.h`) and optional message text type.
-Draw paths split TV (`draw`), GamePad (`drawDRC`), and system DRC (`drawDRC_System`).
+`CommonWindowMgr` (singleton `0x101D15E8`, disposer `0x024BC444` / `0x024BC874`) owns one embedded `CommonWindow` (`0x1ABC` bytes).
+The pause dialog uses `CommonWindow::cType_WinText_Pause` via `CommonWindowMgr::open`.
+Message copy can differ through `CommonWindow::Type msg_text_type` while the window kind stays pause.
 
-Decomp: `vendor/decomp/include/game/CommonWindowMgr.h`, `vendor/decomp/src/layout/CommonWindowMgr.cpp`, `CommonWindow.cpp`, `PaCursor.cpp`.
+Guest flow:
+
+1. `CommonWindowMgr::create` calls `CommonWindow::create`, which runs `Multi2D::createLayoutObj`, `AnimLayoutBase::readResource`, `build`, pane registration, and `PaCursor` setup on the window layout at `+0x24`.
+2. `CommonWindowMgr::execute` runs `CommonWindow::execute` (state machine + `animPlay` on layer `0xE` when visible).
+3. Pad handling: `CommonWindowMgr::processPadTrig_OneButton` / `processPadTrig_TwoButtons` delegate to `CommonWindow::processPadTrigOneButton` / `processPadTrigTwoButtons`, which install a handler from `lookupPadTrigFuncOneButton_` / `lookupPadTrigFuncTwoButtons_` (indexed by `CommonWindow::Type` at `+0x1AA0`) into `+0x1128`, then drive `PaCursor` and `FStateMgr` transitions.
+4. Draw: `CommonWindowMgr::draw` / `drawDRC` / `drawDRC_System` call `CommonWindow::draw` / `drawDRC`, which gate on `mIsVisible`, `mIsFadeOut`, and DRC flags before `Multi2D::draw`.
+
+Decomp headers: `vendor/decomp/include/game/CommonWindowMgr.h`, `vendor/decomp/include/layout/CommonWindow.h`.
+Implementation: `vendor/decomp/src/layout/CommonWindowMgr.cpp`, `CommonWindow.cpp`, `PaCursor.cpp`.
 
 ## Mod-facing integration (future)
 
@@ -66,7 +73,7 @@ Mod code must respect `LayoutAllocator` heap (`setHeap` on the embedded allocato
 
 ## Related symbols still header-only or data-only
 
-- `LayoutObj`, `TextBox`, `ArcResAccMulti`, `FlexibleTextBox`, `AnimText` — referenced from `AnimLayoutBase::build` but not fully decompiled as units yet.
+- Header shells for `LayoutObj`, `PartsLayoutObj`, `TextBox`, `ArcResAccMulti`, `FlexibleTextBox`, and `AnimText` live under `vendor/decomp/include/layout_sys/`; `.cpp` units are still partial (`Multi2D.cpp`, `AnimLayoutBase.cpp`).
 - Static state ID objects (`ChangePlayerNum::StateID_CloseRequest`, etc.) live in `.data`, not `.text`.
 
 ## Tools
