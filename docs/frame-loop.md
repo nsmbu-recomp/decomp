@@ -120,5 +120,7 @@ Player, enemy, and layout code assume one step equals one sixtieth of a second.
 
 The recomp port hooks `0x029C52CC` / `0x029C4FE4` / `0x029C5104` to insert draw-only holds between logic steps.
 That is host presentation work; the guest engine still has no delta-time sim.
+A 30 fps present runs two app calc passes in one `procCalc_` by setting `mCalcPassCount`, then one `calcDL` and one `calc_`.
+Calling `procCalc_` twice would also run `calc_` twice, and each `calc_` waits on `GX2DrawDone`.
 
 See also `map-shadow-interp.md` for why holds must skip `procDraw_` on the world map.
