@@ -32,8 +32,9 @@ Hold / in-between interpolation passes call only `calc_` (`0x029C5104`) and stil
 Without the skipped calc prep the light-map state is one pass stale on the hold draw, and map shadows alternate on and off at 120/144 fps.
 No `GX2Clear*` call exists in the depth-shadow layer's draw, and the only clear on the draw path is the reflection layer's own target, so for the map shadows the "clear and come back empty" mechanism is still unconfirmed; the light-map path is the one the hold skip protects.
 The runtime decides a hold before `procDraw_`.
-Boot, the GamePad notice, Let's Play, and course loads run `procDraw_` and `procCalc_` on every present.
-A hold present is only used on the settled world map and during course play.
+Holds stay on for a settled map and for course play.
+They drop while a course is opening, from the scene change until the course is on screen and the fade has finished.
+The panel uses a 60 Hz mode for that open.
 On a map hold, `procDraw_` is skipped so the light-map pass is not one step stale.
 Course play still redraws holds for camera and model blending.
 The present cap stays at the selected rate.
