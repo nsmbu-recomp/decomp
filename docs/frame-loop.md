@@ -120,8 +120,9 @@ Player, enemy, and layout code assume one step equals one sixtieth of a second.
 
 The recomp port hooks `0x029C52CC` / `0x029C4FE4` / `0x029C5104` to insert draw-only holds between logic steps.
 That is host presentation work; the guest engine still has no delta-time sim.
-A 30 fps present runs the full task tree once per logic step, with `clearRenderMgr` before each step, then one `calcDL` and one `calc_`.
-`mCalcPassCount` above 1 only repeats the app calc node.
-It does not clear the render manager or run the rest of the task tree, so both steps' draw objects land in one picture.
+A 30 fps present calls `procCalc_` once per logic step.
+Each call clears, runs the task tree, builds one display list, and waits in `calc_` (`GX2DrawDone`) before the next clear.
+`mCalcPassCount` above 1 only repeats the app calc node, so both steps' draw objects land in one picture.
+A second clear in the same call, without that wait, frees a list the render thread is still reading.
 
 See also `map-shadow-interp.md` for why holds must skip `procDraw_` on the world map.
