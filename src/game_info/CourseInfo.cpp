@@ -2,6 +2,23 @@
 
 SEAD_SINGLETON_DISPOSER_IMPL(CourseInfo)
 
+// Address: 0x024D281C
+CourseInfo::CourseInfo()
+{
+    mCourseNow.world_no = 0;
+    mCourseNow.course_no = 0;
+    mCourseNow.file_no = 0;
+    mCourseNow.next_goto_no = 0xFF;
+    mCourseNow.area_no = 0;
+    mCourseNow.scene_enter_type = 0;
+
+    mCourseNext.world_no = 0;
+    mCourseNext.course_no = 0;
+    mCourseNext.file_no = 0;
+    mCourseNext.next_goto_no = 0xFF;
+    mCourseNext.scene_enter_type = 0;
+}
+
 // Address: 0x024D293C
 void CourseInfo::setNextWorldNo(u8 world_no)
 {
@@ -42,4 +59,22 @@ void CourseInfo::setNextNextGotoNo(u8 next_goto_no)
 void CourseInfo::setNextSceneEnterType(u32 type)
 {
     mCourseNext.scene_enter_type = type;
+}
+
+// Address: 0x024D3910
+bool CourseInfo::isShortPlay() const
+{
+    return mCourseNow.course_no == 0x2D;
+}
+
+// Address: 0x024D3928
+bool CourseInfo::isStaffCredit() const
+{
+    return mCourseNow.course_no == 0x28;
+}
+
+// Address: 0x024D3940
+bool CourseInfo::isTitle() const
+{
+    return mCourseNow.course_no == 0x26;
 }

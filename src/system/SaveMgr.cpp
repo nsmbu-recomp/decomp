@@ -6,6 +6,7 @@
 #include <system/MainGame.h>
 #include <player/PlayerEnum.h>
 #include <scene/Scene.h>
+#include <system/CommentMgr.h>
 #include <system/MainGame.h>
 
 #include <filedevice/seadFileDevice.h>
@@ -106,6 +107,87 @@ sead::FileDevice* saveFileDevice()
 {
     return *reinterpret_cast<sead::FileDevice**>(kSaveFileDevice);
 }
+
+// Address: 0x029CF580
+s32 sub_029CF580(u8 value)
+{
+    if (value == 0xFF)
+        return -1;
+
+    return value;
+}
+
+// Address: 0x021F54D0
+void sub_021F54D0(void* dst, const void* src)
+{
+    std::memcpy(dst, src, 0xC);
+}
+
+// Address: 0x024BBBD4
+void sub_024BBBD4(void* course_flags);
+
+// Address: 0x024BBC48
+void sub_024BBC48(void* course_flags, const void* src);
+
+// Address: 0x024BB344
+u32 sub_024BB344(const void* course_flags);
+
+// Address: 0x024BB3B0
+void sub_024BB3B0(const void* course_flags, u8* out_bits);
+
+// Address: 0x024CD624
+void sub_024CD624(u8* course_bits, u32 index, bool value);
+
+// Address: 0x024CD834
+void sub_024CD834(void* course_bits, const void* src);
+
+// Address: 0x024C4658
+void sub_024C4658(void* stats, const void* src);
+
+// Address: 0x024C41A8
+void sub_024C41A8(void* stats);
+
+// Address: 0x021D6540
+void sub_021D6540(void* dst);
+
+// Address: 0x021D6778
+void sub_021D6778(void* dst, const void* src);
+
+// Address: 0x029CDD48
+void sub_029CDD48(void* main, const void* src);
+
+// Address: 0x029CDD64
+void sub_029CDD64(void* main, u32 value);
+
+// Address: 0x029CDD8C
+void sub_029CDD8C(void* main, u32 value);
+
+// Address: 0x029CDEE4
+void sub_029CDEE4(void* main, u8 arg_0, u8 arg_1);
+
+// Address: 0x029CD22C
+void sub_029CD22C(void* main);
+
+// Address: 0x029CD1E8
+void sub_029CD1E8(void* main);
+
+// Address: 0x029CDF24
+void sub_029CDF24(void* main);
+
+// Address: 0x029CDF30
+void sub_029CDF30(void* main);
+
+// Address: 0x029CD290
+void sub_029CD290(void* main);
+
+// Address: 0x029C8134
+void sub_029C8134(CommentMgr* mgr, u32 value);
+
+// Address: 0x029C816C
+void sub_029C816C(CommentMgr* mgr, u8 value);
+
+// Address: 0x02A1A020
+void sub_02A1A020(void* tick_time);
 
 void signalSaveThread_(SaveMgr* mgr, u32 mode)
 {
@@ -212,11 +294,22 @@ void normalizeSaveCounter_(SaveMgr* mgr)
 }
 
 // Address: 0x024E87DC
-u8 savedataCounter_(void* counter_mgr, u8* dst)
+u32 savedataCounter_(void* counter_mgr, u8* dst)
 {
-    (void)counter_mgr;
-    (void)dst;
-    return 0;
+    u8* counter = reinterpret_cast<u8*>(counter_mgr);
+    const u8* node = reinterpret_cast<const u8*>(*reinterpret_cast<const u32*>(counter + 0x14)) - 0xC;
+    const u8* sentinel = counter + 4;
+
+    *reinterpret_cast<u8*>(counter + 0x500) = 0;
+
+    while (node != sentinel)
+    {
+        std::memcpy(dst, node, 0xA);
+        node = reinterpret_cast<const u8*>(*reinterpret_cast<const u32*>(node + 0x10)) - 0xC;
+        dst += 0xA;
+    }
+
+    return *reinterpret_cast<const u32*>(counter + 0x18);
 }
 
 // Address: 0x029F81B0-family helper: tick delta to elapsed seconds
@@ -228,21 +321,288 @@ u32 elapsedSeconds_(u64 now, u64 init)
 }
 
 // Address: 0x024D2904
-void resetCourseInfo_()
+void resetCourseInfo_(CourseInfo* course_info)
 {
-    (void)CourseInfo::instance();
+    u8* info = reinterpret_cast<u8*>(course_info);
+
+    *reinterpret_cast<u32*>(info + 0x20) = 0;
+    info[0x13] = 0xFF;
+    *reinterpret_cast<u32*>(info + 0x18) = 0;
+    info[0x1F] = 0xFF;
+    info[0x10] = 0;
+    info[0x12] = 0;
+    info[0x11] = 0;
+    info[0x14] = 0;
+    info[0x1E] = 0;
+    info[0x1C] = 0;
+    info[0x1D] = 0;
+}
+
+// Address: 0x024CD7EC
+void resetMainGameCourseSelectBits_(u8* course_bits)
+{
+    for (u32 index = 0; index < 0x52; ++index)
+        sub_024CD624(course_bits, index, false);
+
+    *reinterpret_cast<u32*>(course_bits) = 0;
 }
 
 // Address: 0x029CF2D0
 void resetMainGameRunState_()
 {
+    u8* main = reinterpret_cast<u8*>(MainGame::instance());
+
+    *reinterpret_cast<u32*>(main + 0x1A0) = 0;
+    *reinterpret_cast<u32*>(main + 0x19C) = 0;
+    *reinterpret_cast<u32*>(main + 0x1A4) = -1;
+    *reinterpret_cast<u32*>(main + 0x1BC) = 0;
+
+    static const s32 cNoMapPose[3] = { -1, -1, -1 };
+    sub_021F54D0(main + 0x1D4, cNoMapPose);
+
+    if (main[0x78] == 0)
+        main[0x78] = 1;
+
+    sub_024BBBD4(main + 0x31C);
+    resetMainGameCourseSelectBits_(main + 0x34);
+
+    const f32* default_scale = reinterpret_cast<const f32*>(0x105EA760);
+    *reinterpret_cast<f32*>(main + 0x858) = default_scale[0];
+    *reinterpret_cast<f32*>(main + 0x85C) = default_scale[1];
+    *reinterpret_cast<f32*>(main + 0x860) = default_scale[2];
+
+    for (s32 i = 0; i < 10; ++i)
+        *reinterpret_cast<u32*>(main + 0x180B8 + i * 4) = 0xE;
+
+    *reinterpret_cast<u16*>(main + 0x208) = 0;
+    main[0x20A] = 0;
+    std::memset(main + 0x64, 0, 0x10);
+
+    sub_021D6540(main + 0x3D8);
+    main[0x21DFC] = 0;
+    sub_029CDD8C(main, 0);
+    main[0x82D] = 0;
+    main[0x82C] = 0;
+
+    static const s32 cNoMapSection[3] = { -1, -1, -1 };
+    sub_021F54D0(main + 0x1C8, cNoMapSection);
+
+    main[0x21E00] = 0;
+    main[0x21E01] = 0;
+    main[0x21DFE] = 0xFF;
+    main[0x21DFF] = 0xFF;
+
+    for (s32 i = 0; i < 7; ++i)
+        main[0x21E03 + i] = 0;
+
+    sub_029CDEE4(main, 0, 0);
+    *reinterpret_cast<u32*>(main + 0x218) = 0;
+    main[0x21E0E] = 0;
+    main[0x21E0F] = 0;
+
+    CommentMgr* comment_mgr = CommentMgr::instance();
+    sub_029C8134(comment_mgr, 0);
+    sub_029C816C(comment_mgr, 0);
+    comment_mgr->_d0 = 0;
+
+    sub_029CD1E8(main);
+    sub_024C41A8(&FieldGame::instance()->getGameData().getStatsData());
+    sub_029CDF24(main);
+    sub_029CDF30(main);
+    main[0x180E0] = 0;
+    sub_029CD290(main);
+
+    main[0x214] = 0;
+    main[0x1F9] = 0;
+    main[0x21E14] = 0;
+    *reinterpret_cast<u16*>(main + 0x21E10) = 0;
+    *reinterpret_cast<u32*>(main + 0x24) = 0;
+    *reinterpret_cast<u32*>(main + 0x20) = 1;
+    *reinterpret_cast<u32*>(main + 0x1C0) = 0;
+    *reinterpret_cast<u32*>(main + 0x218) = 0;
+    sub_029CDD64(main, 0);
+
+    main[0x82E] = 0;
+    *reinterpret_cast<u32*>(main + 0x1A8) = -1;
+    *reinterpret_cast<u32*>(main + 0x1F0) = 6;
+    *reinterpret_cast<u32*>(main + 0x1AC) = -1;
+    main[0x1FF] = 0;
+    main[0x1FE] = 0;
+    *reinterpret_cast<u32*>(main + 0x1B4) = -1;
+    main[0x1FB] = 0;
+    *reinterpret_cast<u32*>(main + 0x1B0) = -1;
+    main[0x1FC] = 0;
+    main[0x1F8] = 0;
+    *reinterpret_cast<u32*>(main + 0x1B8) = -1;
+    main[0x82F] = 0;
+    main[0x200] = 0;
+    main[0x830] = 0;
+    main[0x1FD] = 0;
+
+    static const s32 cNoMapNode[3] = { -1, -1, -1 };
+    sub_021F54D0(main + 0x1E0, cNoMapNode);
+
+    *reinterpret_cast<u32*>(main + 0x1EC) = 6;
+    main[0x21DFD] = 0;
+    sub_029CD22C(main);
+    main[0x21E02] = 0;
+    *reinterpret_cast<u32*>(reinterpret_cast<u8*>(comment_mgr) + 0xEC) = 0;
+    *reinterpret_cast<u32*>(reinterpret_cast<u8*>(comment_mgr) + 0xE8) = 0;
+    main[0x21DFB] = 0;
+    main[0x21DFA] = 0;
+    main[0x82F] = 0;
+    *reinterpret_cast<u32*>(main + 0x7C) = 0;
+    main[0x82E] = 0;
+    *reinterpret_cast<u32*>(main + 0x18) = 0;
+
+    SubjectMgr::instance()->clearSubject();
 }
 
 // Address: 0x029CF590
 void copyPlayerSetupToMainGame_(const u8* record, u32 play_seconds)
 {
-    (void)record;
     (void)play_seconds;
+
+    MainGame* main_game = MainGame::instance();
+    u8* main = reinterpret_cast<u8*>(main_game);
+
+    *reinterpret_cast<u32*>(main + 0x19C) = record[4];
+    *reinterpret_cast<u32*>(main + 0x1A0) = record[5];
+    *reinterpret_cast<u32*>(main + 0x1A4) = sub_029CF580(record[6]);
+    *reinterpret_cast<u32*>(main + 0x1BC) = record[4];
+
+    s32 map_pose[3];
+    if (record[7] == 0xFF)
+    {
+        map_pose[0] = -1;
+        map_pose[1] = -1;
+        map_pose[2] = -1;
+    }
+    else
+    {
+        map_pose[0] = record[7];
+        map_pose[1] = record[8];
+        map_pose[2] = sub_029CF580(record[9]);
+    }
+    sub_021F54D0(main + 0x1D4, map_pose);
+
+    u8 otehon = record[3] & 1;
+    if (main[0x78] != otehon)
+        main[0x78] = main[0x78] ^ 1;
+
+    sub_024BBC48(main + 0x31C, record + 0x6B);
+    sub_024CD834(main + 0x34, record + 0x124);
+
+    *reinterpret_cast<f32*>(main + 0x858) = *reinterpret_cast<const f32*>(record + 0x20);
+    *reinterpret_cast<f32*>(main + 0x85C) = *reinterpret_cast<const f32*>(record + 0x24);
+    *reinterpret_cast<f32*>(main + 0x860) = *reinterpret_cast<const f32*>(record + 0x28);
+
+    for (s32 i = 0; i < 10; ++i)
+        *reinterpret_cast<u32*>(main + 0x180B8 + i * 4) = record[0x14D + i];
+
+    *reinterpret_cast<u16*>(main + 0x208) = *reinterpret_cast<const u16*>(record + 0x1C);
+    main[0x20A] = record[0x58] != 0;
+
+    sub_029CDD48(main, record + 0x34);
+    sub_021D6778(main + 0x3D8, record + 0x157);
+
+    main[0x21DFC] = record[0x1FC];
+    sub_029CDD8C(main, *reinterpret_cast<const u32*>(record + 0x2C));
+
+    main[0x82C] = record[0x1E];
+    main[0x82D] = record[0x1F];
+
+    s32 map_node[3];
+    if (record[0x46] == 0xFF)
+    {
+        map_node[0] = -1;
+        map_node[1] = -1;
+        map_node[2] = -1;
+    }
+    else
+    {
+        map_node[0] = record[0x46];
+        map_node[1] = record[0x47];
+        map_node[2] = sub_029CF580(record[0x48]);
+    }
+    sub_021F54D0(main + 0x1C8, map_node);
+
+    main[0x21DFE] = record[0x49];
+    main[0x21DFF] = record[0x4A];
+    main[0x21E00] = record[0x4B];
+    main[0x21E01] = record[0x4C];
+
+    for (s32 i = 0; i < 7; ++i)
+        main[0x21E03 + i] = record[0x64 + i];
+
+    sub_029CDEE4(main, record[0xA], record[0xB]);
+
+    *reinterpret_cast<u32*>(main + 0x218) = record[0x4D];
+    main[0x21E0E] = record[0x4F] & 1;
+    main[0x21E0F] = (record[0x4F] >> 1) & 1;
+
+    CommentMgr* comment_mgr = CommentMgr::instance();
+    sub_029C8134(comment_mgr, record[0x50] & 0x7F);
+    sub_029C816C(comment_mgr, (record[0x50] >> 7) & 1);
+    comment_mgr->_d0 = record[0x51] != 0;
+
+    main[0x20B] = record[0x52];
+    main[0x20C] = record[0x53];
+    main[0x180E0] = record[0x54] != 0;
+    main[0x20D] = record[0x55];
+    *reinterpret_cast<u32*>(main + 0x210) = record[0x56];
+    main[0x20E] = record[0x5A];
+    main[0x20F] = record[0x5B];
+    main[0x214] = record[0x59] != 0;
+    main[0x1F9] = record[0x57] != 0;
+
+    for (s32 i = 0; i < 4; ++i)
+    {
+        main[0x824 + i] = record[0x5C + i];
+        main[0x828 + i] = record[0x60 + i];
+    }
+
+    sub_024C4658(&FieldGame::instance()->getGameData().getStatsData(), record + 0x1C4);
+    *reinterpret_cast<u16*>(main + 0x21E10) = *reinterpret_cast<const u16*>(record + 0x44);
+
+    *reinterpret_cast<u32*>(main + 0x20) = 1;
+    *reinterpret_cast<u32*>(main + 0x1C0) = 0;
+    *reinterpret_cast<u32*>(main + 0x24) = 0;
+    sub_029CDD64(main, 0);
+
+    main[0x1FF] = 0;
+    *reinterpret_cast<u32*>(main + 0x1B8) = -1;
+    main[0x1FE] = 0;
+    *reinterpret_cast<u32*>(main + 0x1F0) = 6;
+    *reinterpret_cast<u32*>(main + 0x1B4) = -1;
+    main[0x1FC] = 0;
+    main[0x1FD] = 0;
+    main[0x830] = 0;
+    *reinterpret_cast<u32*>(main + 0x1B0) = -1;
+    main[0x200] = 0;
+    main[0x82F] = 0;
+    *reinterpret_cast<u32*>(main + 0x1A8) = -1;
+    main[0x82E] = 0;
+    main[0x1FB] = 0;
+    main[0x1F8] = 0;
+    *reinterpret_cast<u32*>(main + 0x1AC) = -1;
+
+    s32 current_pose[3];
+    current_pose[0] = *reinterpret_cast<const u32*>(main + 0x19C);
+    current_pose[1] = *reinterpret_cast<const u32*>(main + 0x1A0);
+    current_pose[2] = *reinterpret_cast<const u32*>(main + 0x1A4);
+    sub_021F54D0(main + 0x1E0, current_pose);
+
+    *reinterpret_cast<u32*>(main + 0x1EC) = 6;
+    main[0x21DFD] = record[0x1FC];
+    sub_029CD22C(main);
+    main[0x21E02] = 0;
+    main[0x21DFB] = 0;
+    main[0x21DFA] = 0;
+    main[0x82E] = 0;
+    main[0x82F] = 0;
+
+    SubjectMgr::instance()->clearSubject();
 }
 
 // Address: 0x024C1FC4
@@ -307,7 +667,7 @@ void enterMapFromGameData_(FieldGameData* game_data, s32 mode)
 // Address: 0x029D9E80
 void updateStoryPlayText_(SaveMgr* mgr)
 {
-    (void)mgr;
+    sub_02A1A020(reinterpret_cast<u8*>(mgr) + 0x40);
 }
 
 } // namespace
@@ -741,7 +1101,144 @@ void writeIndexPlayerTable_(u8* game_data)
 void sanitizeRecord_(SaveMgr* mgr, u8* record)
 {
     (void)mgr;
-    (void)record;
+
+    u8 used = record[0];
+    if (used > 1)
+        used = 1;
+    record[0] = used;
+
+    if (used == 0)
+        return;
+
+    u8 mode = record[1];
+    if (mode == 0)
+        mode = 1;
+    else if (mode > 4)
+        mode = 4;
+    record[1] = mode;
+
+    if (record[2] > 100)
+        record[2] = 100;
+
+    record[3] &= 1;
+
+    if (record[4] > 8)
+        record[4] = 8;
+
+    if (record[5] > 1)
+        record[5] = 1;
+
+    record[0xA] &= 0x0F;
+
+    if (record[0xB] > 2)
+        record[0xB] = 2;
+
+    for (u32 i = 0; i < 4; ++i)
+    {
+        if (record[0x0C + i] > 99)
+            record[0x0C + i] = 99;
+
+        if (record[0x10 + i] > 4)
+            record[0x10 + i] = 4;
+
+        record[0x14 + i] &= 0x8F;
+
+        if (record[0x18 + i] > 99)
+            record[0x18 + i] = 99;
+    }
+
+    record[0x1E] &= 0x1F;
+    record[0x1F] &= 0x1F;
+
+    *reinterpret_cast<u16*>(record + 0x1C) &= 0x1FF;
+    *reinterpret_cast<u32*>(record + 0x2C) &= 0x3FFFF;
+
+    if (*reinterpret_cast<u32*>(record + 0x30) > kMaxPlaySeconds)
+        *reinterpret_cast<u32*>(record + 0x30) = kMaxPlaySeconds;
+
+    if (*reinterpret_cast<u16*>(record + 0x44) > 9999)
+        *reinterpret_cast<u16*>(record + 0x44) = 9999;
+
+    s32 world = static_cast<s8>(record[0x49]);
+    if (world < -1)
+        world = -1;
+    else if (world > 6)
+        world = 6;
+    record[0x49] = static_cast<u8>(world);
+
+    s32 course = static_cast<s8>(record[0x4A]);
+    if (course < -1)
+        course = -1;
+    else if (course > 6)
+        course = 6;
+    record[0x4A] = static_cast<u8>(course);
+
+    if (record[0x4B] > 5)
+        record[0x4B] = 5;
+
+    if (record[0x4C] > 3)
+        record[0x4C] = 3;
+
+    if (record[0x4D] > 4)
+        record[0x4D] = 4;
+
+    if (record[0x4E] > 0xE)
+        record[0x4E] = 0xE;
+
+    record[0x4F] &= 3;
+
+    if (record[0x51] > 1)
+        record[0x51] = 1;
+
+    if (record[0x52] > 99)
+        record[0x52] = 99;
+
+    if (record[0x53] > 99)
+        record[0x53] = 99;
+
+    if (record[0x54] > 1)
+        record[0x54] = 1;
+
+    if (record[0x56] > 4)
+        record[0x56] = 4;
+
+    if (record[0x57] > 1)
+        record[0x57] = 1;
+
+    if (record[0x58] > 1)
+        record[0x58] = 1;
+
+    if (record[0x59] > 1)
+        record[0x59] = 1;
+
+    if (record[0x5A] > 5)
+        record[0x5A] = 5;
+
+    if (record[0x5B] > 5)
+        record[0x5B] = 5;
+
+    for (u32 i = 0; i < 4; ++i)
+    {
+        if (record[0x5C + i] > 0x13)
+            record[0x5C + i] = 0x13;
+
+        if (record[0x60 + i] > 7)
+            record[0x60 + i] = 7;
+    }
+
+    for (u32 i = 0; i < 7; ++i)
+    {
+        if (record[0x64 + i] > 3)
+            record[0x64 + i] = 3;
+    }
+
+    for (u32 i = 0; i < 10; ++i)
+    {
+        if (record[0x14D + i] > 0xE)
+            record[0x14D + i] = 0xE;
+    }
+
+    record[0x1FC] &= 0x7F;
 }
 
 // Address: 0x029D7184
@@ -756,17 +1253,21 @@ void sanitizeRecord_(SaveMgr* mgr, u8* record)
 // and the popcount is what the slot keeps. 0x02641974 pane index 6 stays on
 // the main record even when quick exists. That pane is the file-copy preview:
 // 0x029D83FC copies the main record and clears the destination quick record.
-void copyFileSelectCourseFlags_(SaveMgr* mgr, u32 file, u8* out_bits)
+u32 copyFileSelectCourseFlags_(SaveMgr* mgr, u32 file, u8* out_bits)
 {
-    (void)mgr;
-    (void)file;
-    (void)out_bits;
-}
+    u8* course_flags = reinterpret_cast<u8*>(MainGame::instance()) + 0x31C;
+    const u8* record = savedataAt(mgr, kSavedataMainRecordBase + file * kSavedataRecordSize);
 
-// Address: 0x024CD7EC
-void resetMainGameCourseSelectBits_(u8* course_bits)
-{
-    (void)course_bits;
+    sub_024BBC48(course_flags, record + 0x6B);
+
+    if (out_bits != nullptr)
+        sub_024BB3B0(course_flags, out_bits);
+
+    u32 count = sub_024BB344(course_flags);
+    if (count > 99)
+        count = 99;
+
+    return count;
 }
 
 // Address: 0x024BBD24
@@ -806,7 +1307,7 @@ void writeDefaultGameDataToRecords_(SaveMgr* mgr)
 
     *reinterpret_cast<u32*>(reinterpret_cast<u8*>(field_game) + 0x16C) = 4;
 
-    resetCourseInfo_();
+    resetCourseInfo_(CourseInfo::instance());
     syncCourseFlagsFromMainRecords_(record0, record1, record2);
 }
 
@@ -818,7 +1319,7 @@ void applySaveFile(SaveMgr* mgr, u8 file)
     u8* backup_record = reinterpret_cast<u8*>(savedata) + kSavedataBackupBase + file * kSavedataRecordSize;
     u8* record = backup_record[0] != 0 ? backup_record : main_record;
 
-    resetCourseInfo_();
+    resetCourseInfo_(CourseInfo::instance());
 
     FieldGameData& game_data = FieldGame::instance()->getGameData();
 
