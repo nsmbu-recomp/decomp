@@ -33,10 +33,9 @@ Without the skipped calc prep the light-map state is one pass stale on the hold 
 No `GX2Clear*` call exists in the depth-shadow layer's draw, and the only clear on the draw path is the reflection layer's own target, so for the map shadows the "clear and come back empty" mechanism is still unconfirmed; the light-map path is the one the hold skip protects.
 The runtime decides a hold before `procDraw_`.
 Holds stay on for a settled map and for course play.
-They drop while a course is opening, from the scene change until the course is on screen and the fade has finished.
-The panel uses a 60 Hz mode for that open.
 On a map hold, `procDraw_` is skipped so the light-map pass is not one step stale.
 Course play still redraws holds for camera and model blending.
+While the GPU is still finishing an earlier picture, that extra course draw is skipped and the last picture is shown again.
 The present cap stays at the selected rate.
 Map and course logic stay near 60 steps per second.
 See `frame-loop.md` for the full sead / ApplicationFramework timing model.

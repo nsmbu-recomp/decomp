@@ -33,6 +33,8 @@ Each `procFrame_`:
 Step 1/8 are confirmed by body: both read the Cafe thread-specific slot id at `*(0x101E80A0)+0x20`, then `OSGetThreadSpecific`.
 `lockDrawContext` compares the result against `+0x10`, bumps the `+0x14` refcount, and otherwise locks the `CriticalSection` at `+0x18` before the `lockDrawContextImpl` virtual (`vtable+0x8C`).
 `unlockDrawContext` decrements `+0x14` and, at zero, clears `+0x10`, runs `unlockDrawContextImpl` (`vtable+0x90`), and unlocks `+0x18`.
+Prepare Thread takes this same lock while it builds a course, and the boot, save, and level loads take it while the screen is black.
+A present cap that spends the whole slot inside `procFrame_` leaves that thread waiting on the lock, so the black screen does not move on.
 Step 2 is confirmed by body: it calls `MethodTreeNode::call` (`0x029FF618`) on `TaskMgr+0x14C` (`mCalcDestructionTreeNode`), then walks the destroyable list invoking `vtable+0x30`.
 Step 7 is confirmed by body: `DCInvalidateRange(mGpuCounters, 0x20)`, then `mDrawOrder` at `+0xC0` selects the TV/DRC `GX2GPUTimeToCPUTime` pairs.
 
