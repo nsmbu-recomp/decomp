@@ -60,21 +60,180 @@ Guest flow:
 Decomp headers: `vendor/decomp/include/game/CommonWindowMgr.h`, `vendor/decomp/include/layout/CommonWindow.h`.
 Implementation: `vendor/decomp/src/layout/CommonWindowMgr.cpp`, `CommonWindow.cpp`, `PaCursor.cpp`.
 
-## Mod-facing integration (future)
+## Mod integration
 
-Nothing in the recomp binary exposes mod UI yet.
-Plausible hooks once this decomp is stable:
+Mods can touch UI in three different places.
+They are not interchangeable.
 
-1. **Native extension**: register a new `AnimLayout` subclass or standalone `Multi2D` derivative from mod code, call the same `createLayoutObj` / pane register / `animPlay` / `draw` sequence on the UI layer.
-2. **Guest hooks**: intercept `CommonWindowMgr::open` or a screen's `create` to inject extra panes or swap `.bflyt` resource names (requires mod asset pipeline).
-3. **Parallel overlay**: run a second layout with the same `DrawInfo` conventions without going through `CommonWindowMgr`, matching how course HUD uses `Multi2D` inside `PlayerCourseHud`.
+**Port overlay (`nsmbu.Gui`).**
+Live today in [api.md](../../../docs/modding/api.md).
+Draws shapes and text in 1280×720 space on top of the final picture.
+It does not use `Multi2D`, `.bflyt`, or GamePad cursor routing.
+Good for counters, debug HUD, and simple indicators.
+Bad for pause-style windows that must respect DRC vs TV, `PaCursor`, or game font/message IDs.
 
-Mod code must respect `LayoutAllocator` heap (`setHeap` on the embedded allocator in each `Multi2D`) and `UtilCursorButtonMgr` when building layouts that use cursor buttons.
+**Guest layout system (this document).**
+Pause, file-select chrome, course stock HUD, and most menus run here.
+Integration means hooking guest functions or (later) calling them through `nsmbu.Hooks.call`.
+Addresses below are USA v1.3.0; hook files and `GC(0x…)` use the same digits ([names.md](../../../docs/names.md)).
 
-## Related symbols still header-only or data-only
+**Content replacement (`content_dir`).**
+Live for archive paths the game resolves at runtime ([content.md](../../../docs/modding/content.md)).
+Can swap layout archives when the game loads a known resource name.
+Does not add new C++ screens by itself.
 
-- Header shells for `LayoutObj`, `PartsLayoutObj`, `TextBox`, `ArcResAccMulti`, `FlexibleTextBox`, and `AnimText` live under `vendor/decomp/include/layout_sys/`; `.cpp` units are still partial (`Multi2D.cpp`, `AnimLayoutBase.cpp`).
-- Static state ID objects (`ChangePlayerNum::StateID_CloseRequest`, etc.) live in `.data`, not `.text`.
+Lua **function hooks** (`nsmbu.Hooks.hook` / `replace` / `call`) are **phase 4 proposal** ([lua-mods.md](../../../docs/modding/lua-mods.md)).
+Until they ship, only **runtime** `hooks.txt` / `hooks_*.txt` hooks (C++) can intercept the symbols below.
+Plan mod packages against both docs.
+
+### Hook targets (USA v1.3.0)
+
+Use the address as the key.
+Add a name in a comment when you edit `tools/recomp/hooks.txt` ([names.md](../../../docs/names.md)).
+
+**Modal UI (pause, quit confirm, save prompts).**
+
+- `024BC4C4` — `CommonWindowMgr::create`.
+  Runs once when the mgr builds its embedded `CommonWindow`.
+  Hook to append pane registration or patch resource strings after the original `create`.
+- `024BC540` — `CommonWindowMgr::execute`.
+  Per-frame state machine and `animPlay` while the modal is active.
+  Hook entry to drive custom visibility or piggyback on `mIsActive`.
+- `024BC590` / `024BC5A4` / `024BC5C4` — `draw` / `drawDRC` / `drawDRC_System`.
+  TV vs GamePad vs system DRC paths.
+  Hook **return** to draw an extra pass, or entry to skip the vanilla window.
+- `024BC5E4` / `024BC7D4` — `processPadTrig_TwoButtons` / `processPadTrig_OneButton`.
+  Pause yes/no and single-button dialogs.
+  Hook to add a third choice only if you also extend `PaCursor` / layout panes.
+- `02585CC4` — `CommonWindow::create`.
+  Loads `WinText` layout, `readResource`, `build`, pane tables.
+  Narrower than mgr `create`; use when patching layout setup only.
+- `025869C8` — `CommonWindow::execute`.
+- `02586AD4` / `02586B4C` — `CommonWindow::draw` / `drawDRC`.
+
+Opening pause is not one named function in `headers_names.txt`.
+Game code sets `CommonWindowMgr::open` inline on the singleton (`mCommonWindow.mRequestOpen`, `mType = cType_WinText_Pause`, …).
+Practical approaches:
+
+- Hook `execute` or `draw` and gate on `CommonWindow::mType` / `mIsVisible` (offsets in [CommonWindow.h](../include/layout/CommonWindow.h)).
+- Site-hook the caller once you find it with `ppcdis` xrefs to `open` or to `cType_WinText_Pause` rodata.
+
+**Shared layout draw path.**
+
+- `02672D14` — `Multi2D::draw`.
+  All `AnimLayout` screens eventually call this with a projection matrix.
+  Hook return to composite extra panes **only if** you already built guest layout state.
+- `02672890` / `02672A4C` — `Multi2D::animPlay`.
+  Advances animations on layer id `0xE` for most menus; course stock HUD uses `0x1C` in [PlayerCourseHud.cpp](../src/game/PlayerCourseHud.cpp).
+  Match the layer id of the screen you extend.
+- `02673050` — `AnimLayoutBase::build`.
+  Instantiates panes, cursor buttons, flexible text boxes.
+  Hook when injecting panes at build time instead of each frame.
+
+**In-course HUD (not pause).**
+
+- `0252F900` — `PlayerCourseHud::drawStockItemList`.
+  DRC item strip; uses embedded `AnimLayout<2>` at `+0x1804`.
+- `025D8EDC` — `GamesceneBase::setCoinNumText`.
+  Coin counter text in gameplay scenes.
+
+**Full-screen overlays (patterns to copy).**
+
+- `AttentionScreen` / `ChangePlayerNum` — `create` / `execute` / `draw` addresses in [AttentionScreen.h](../include/layout/AttentionScreen.h) and [ChangePlayerNum.h](../include/layout/ChangePlayerNum.h).
+  New guest screens should mirror this FState + `AnimLayout` shape, then hook the task that should show them.
+
+**File-select cursor chrome.**
+
+- `024C63E0` / `024C6500` / `024C65A0` — `SelectCursor::create` / `execute` / `draw`.
+  Typed layouts: [SelectCursorLayout.h](../include/layout/SelectCursorLayout.h).
+
+Singleton instances for mod memory reads (not hook entry points):
+
+- `CommonWindowMgr` — data `0x101D15E8`.
+- `SelectCursor` — `0x101D17A8`.
+
+### Patterns
+
+**1. Overlay beside vanilla UI (works with phase 4 Lua or C++ hooks).**
+
+Hook `CommonWindowMgr::draw` (or `CommonWindow::draw`) on **return**.
+Call original, then draw via `nsmbu.Gui` from Lua (today) or a small runtime hook that calls the port overlay API.
+Vanilla pause keeps pad routing; your art stays separate.
+Easiest mod UX; does not look like native `WinText`.
+
+**2. Patch an existing layout (content + light hooks).**
+
+Ship a modified `.bflyt` / `.bflan` under `content_dir` on the same archive path the game already loads.
+Hook `AnimLayoutBase::readResource` or `CommonWindow::create` only if you must change which resource name is passed.
+Restart required for `content_dir` map.
+Text still goes through game message IDs unless you replace `TextBox` strings in the layout.
+
+**3. Guest memory beside an active `Multi2D` (advanced, fragile).**
+
+On `CommonWindowMgr::execute`, read `CommonWindowMgr::instance()` → embedded `CommonWindow` → `mLayout` at `+0x24` (`AnimLayout` / `Multi2D`).
+Use [AnimLayout.h](../include/layout_sys/AnimLayout.h) offsets and `nsmbu.Guest` (today) to flip pane visibility bytes (see `AttentionScreen::open` setting pane `+0x44` in decomp).
+No new panes unless you also hook `build` or run guest alloc + registration calls via future `nsmbu.Hooks.call`.
+Easy to break on layout updates; prefer hooks on named methods over hard-coded offsets when possible.
+
+**4. Call the same lifecycle as a native screen (future-native custom UI).**
+
+Goal: a mod-owned `AnimLayout` instance participating in draw and pad like `ChangePlayerNum`.
+
+1. Allocate guest memory for your object (future `nsmbu.Guest.alloc` or static guest buffer).
+2. Call guest ctor / `createLayoutObj` / `readResource` / `build` chain matching [AttentionScreen.cpp](../src/layout/AttentionScreen.cpp).
+3. Register panes with `NPaneRegister` / `TPaneRegister` / … using names from your `.bflyt`.
+4. Each frame: `execute` → `animPlay` → on draw pass call `Multi2D::draw` with the same projection path as sibling UI (hook an existing `draw` and call through after setting visibility).
+5. Route input through `PaCursor` + `UtilCursorButtonMgr` if you need focus, or rely on `CommonWindowMgr`-style pad handlers.
+
+This path needs **`nsmbu.Hooks.call`** (or C++ recomp hooks) with stable calling conventions.
+It is not exposed in Lua API v1.
+
+**5. Parallel HUD block (course-style).**
+
+Embed or allocate a `Multi2D` / `AnimLayout` and hook a course draw site (`PlayerCourseHud::drawStockItemList` or `Multi2D::draw` on layer `0x1C`).
+Does not block pause.
+Good for always-on mod panels in levels.
+
+### Runtime hook workflow (C++ today)
+
+1. Pick a USA address from the list above; confirm in `tools/recomp/headers_names.txt`.
+2. Add a line to `tools/recomp/hooks.txt` (function entry) or `@XXXXXXXX` for a site hook ([names.md](../../../docs/names.md)).
+3. `nsmbu game usa-1.3.0 --recomp` then `nsmbu build` (hook list change forces recomp).
+4. Implement `hook_XXXXXXXX` in `runtime/src/hooks/` (pattern in existing hook files).
+5. Call `f_XXXXXXXX_orig` when wrapping; respect game thread only.
+
+No UI symbols are hooked in the port yet.
+First mod-friendly candidates: `024BC590` (modal draw), `0252F900` (course HUD), `02672D14` (all layout draw).
+
+### Lua workflow (phase 4 proposal)
+
+When `nsmbu.Fn` is populated from headers, prefer names over raw hex:
+
+```lua
+-- Proposal only; not in API v1 yet.
+nsmbu.Hooks.hook(nsmbu.Fn.CommonWindowMgr_draw, "return", function(ctx)
+  nsmbu.Hooks.original()
+  -- nsmbu.Gui or nsmbu.Hooks.call into Multi2D::draw
+end)
+```
+
+Use `onLogicStep` today for `nsmbu.Gui` without touching guest UI.
+Use guest hooks when you need native fonts, layout animation, or GamePad focus.
+
+### Pitfalls
+
+- **Allocator heap.** Each `Multi2D` owns a `LayoutAllocator`; `setHeap` must point at valid guest heap before `createLayoutObj`.
+- **TV vs DRC.** Modal UI splits `draw` and `drawDRC`; pause on GamePad-only flows needs both or DRC-only hooks.
+- **Pad focus.** `PaCursor` and `CommonWindowMgr` controller slots (`SysControllerWrapper` array on the mgr) consume input while open; overlay `nsmbu.Gui` does not participate in that focus model.
+- **European builds.** Hook addresses move with the regional map ([builds.md](../../../docs/builds.md)); object layouts do not.
+- **Message text.** `setTextBoxMessageFromTextID` pulls from the game MSBT pipeline; custom strings need layout text or a hook on `TextBox::setMessageParam_` (`0x02681BFC`).
+- **Recomp cost.** Each new hooked function stays recompiled in the mod build; keep hooks on high-level `execute` / `draw`, not per-pane inner loops.
+
+### Related decomp gaps
+
+- Header shells for `LayoutObj`, `PartsLayoutObj`, `TextBox`, `ArcResAccMulti`, `FlexibleTextBox`, and `AnimText` under `include/layout_sys/`; `.cpp` coverage is still partial.
+- Static state IDs (for example `ChangePlayerNum::StateID_CloseRequest` at `0x1020D434`) live in `.data`.
+- Layout file format: NintendoWare Lyt tree in `references/Lyt` (local checkout), not in this repo.
 
 ## Tools
 
