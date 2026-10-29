@@ -19,3 +19,8 @@ The compiler materialises a static address with `lis` + `addic` often enough tha
 - [ ] Resolve the bootstrap order between audio init and the first `startSound`.
   The init root `0x029E8324` has no static caller; it is reached through tables `.rodata 0x1017C1A4`, `0x1017C284`, `0x1018D9E0`, `0x1018DA04`, and no `.text` or data reloc points at them.
   The earliest `startSound` caller found is `SndAudioMgr::startSystemSe` (`0x029B54C0`) from gameplay, so the "sound can start before Setup" claim is unproven either way.
+
+## course-entry.md
+
+- [ ] Name every save-record byte that `0x0250C3EC` copies into `FieldGameData` and `MainGame`, and say which of them a direct course open must seed.
+- [ ] Resolve what `f_024BD86C` reads from `FieldGameData` and `PlayerMgr` before the area task starts, and which of those reads a direct open skips.
