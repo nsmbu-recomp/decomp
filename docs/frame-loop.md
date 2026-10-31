@@ -127,4 +127,16 @@ Each call clears, runs the task tree, builds one display list, and waits in `cal
 `mCalcPassCount` above 1 only repeats the app calc node, so both steps' draw objects land in one picture.
 A second clear in the same call, without that wait, frees a list the render thread is still reading.
 
-See also `map-shadow-interp.md` for why holds must skip `procDraw_` on the world map.
+See also `map-shadow-interp.md` for why the world map skips `procDraw_` on the present after a hold calc.
+
+`ModelG3d::calc` (`0x024F301C`) fills the skeleton uniform block before `ModelG3d::calcGPU` (`0x024F30DC`).
+The block sits at skeleton+`0x18`.
+Its data pointer is the word at +`0x18` and its size is the word at +`0x1C`.
+`0x02AAAD18` writes that block from the world matrices at skeleton+`0x10`, multiplied by the matrix at `0x101B7750`.
+Skinned draws load it with `LoadVertexUniforms` (`0x02AB4C44`) from skeleton+`0x18`.
+
+On the title course the scanned picture does not follow later writes to that block or to the world matrices.
+Clearing either one inside `calcGPU` leaves the runners in place.
+The in-between present repeats the picture the logic step already drew.
+The port does not rewrite those buffers from `calcGPU`.
+A second `LayerMgr::calcDL` (`0x024E0F84`) crashes in the layer builder (`0x02509488`, null+4).

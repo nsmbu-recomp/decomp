@@ -28,13 +28,16 @@ That class passes `{0x101A9478, "<name>"}` pairs to `0x02A5069C`, which is a `bl
 `"static_depth_shadow"` (`0x101A658C`) is unrelated: it is an entry in `agl::detail::ShaderHolder`'s `sShaders[]` at `.rodata 0x101A6000`, next to `light_pre_pass_quad`, `multi_filter_reduce`, and the `cubemap_*` entries.
 
 `ApplicationFramework::procCalc_` / `GameFrame::procCalc_` (`0x029C52CC`) runs `clearRenderMgr`, the task tree (including `LightMapMgr::calc` at `0x024E5008`), then `LayerMgr::calcDL` (`0x024E0F84`), then `calc_`.
-Hold / in-between interpolation passes call only `calc_` (`0x029C5104`) and still run `procDraw_`.
-Without the skipped calc prep the light-map state is one pass stale on the hold draw, and map shadows alternate on and off at 120/144 fps.
-No `GX2Clear*` call exists in the depth-shadow layer's draw, and the only clear on the draw path is the reflection layer's own target, so for the map shadows the "clear and come back empty" mechanism is still unconfirmed; the light-map path is the one the hold skip protects.
-The runtime decides a hold before `procDraw_`.
-Holds stay on for a settled map and for course play.
-On a map hold, `procDraw_` is skipped so the light-map pass is not one step stale.
-Course play still redraws holds for camera and model blending.
+Hold / in-between interpolation passes call only `calc_` (`0x029C5104`).
+`procDraw_` runs before `procCalc_` in the same present (`frame-loop.md`).
+The full logic `procCalc_` rebuilds the light maps after that present has already recorded its draw.
+The GPU then samples the maps while they are being replaced, and world-map shadows alternate on and off at 120/144 fps.
+The present that stays stable is the one after that logic calc.
+Its calc is a hold, so the maps are left alone, and the draw shows the picture those maps belong to.
+On the map, `procDraw_` is skipped when the previous calc was a hold.
+That drops the present whose calc is the logic step.
+No `GX2Clear*` call exists in the depth-shadow layer's draw, and the only clear on the draw path is the reflection layer's own target, so for the map shadows the "clear and come back empty" mechanism is still unconfirmed; the light-map path is the one this skip protects.
+Course play still draws every present so the camera and models can blend.
 While the GPU is still finishing an earlier picture, that extra course draw is skipped and the last picture is shown again.
 The present cap stays at the selected rate.
 Map and course logic stay near 60 steps per second.
