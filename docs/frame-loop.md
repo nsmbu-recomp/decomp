@@ -84,6 +84,10 @@ Hold / in-between port passes call only this path so the task tree does not adva
 
 `procDraw_` draws the TV then the DRC method tree.
 The app override (`0x029C4FE4`) calls `DualScreenMethodTreeMgr::drawTop` (`0x029FD944` → `mTopRootDrawNode.call()`, node `+0x13C`), then `drawBtm` (`0x029FD94C` → `mBtmRootDrawNode.call()`, node `+0x28C`).
+`drawTop` finishes before `drawBtm` starts, and the two trees write separate screen targets.
+The TV picture does not sample this frame's GamePad targets.
+The port skips `drawBtm` when the GamePad screen is not shown (mode off, or window/pip hidden).
+Auto and the full GamePad view still run `drawBtm`, because those modes read that picture.
 It also calls dispatch-table slot `+0xAC` (`0x029C5734`) once after each of those two calls, but that body is `li r3, 0; blr` — a no-op stub.
 The base table `0x101906D4` puts the "a pure virtual function was called" panic (`0x02AFA5E8`) in that slot, so the app override only silences it; it does not exec a method tree.
 `GX2SetContextState` (`0x029C50E4`, on `*(0x101F8000)+0x134`) and `GX2Flush` (`0x029C50E8`) run after both draws, not between them.
