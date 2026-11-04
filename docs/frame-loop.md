@@ -155,6 +155,14 @@ The display list keeps the uniform-block address.
 The port then waits for the render thread to copy that picture before `procCalc_` replaces it.
 An in-between present uses the halfway pose and the halfway projection for that copy.
 A hold does not call `calcGPU`, so the port rebuilds `ModelEnvView` from that projection before the copy.
+Course tiles do not use that uniform block.
+The course-layer tile draws read the live ortho at `RenderInfo+0x18` and copy top, bottom, left, and right from offsets `0x9C`, `0xA0`, `0xA4`, and `0xA8`.
+`0x026919A4` is one of those draws, and `0x0269325C` is another.
+`sead::OrthoProjection::setTBLR` (`0x02A06818`) stores those floats, and `Renderer::calcForAreaTask` (`0x024FA76C`) fills them from the renderer view box.
+The port copies the in-between projection into the model uniforms, then writes the logic box back before the rest of the draw.
+The tile projection is copied into the display list at record time, so a later change to the live ortho does not move the ground.
+The port rewrites those recorded matrix words with the in-between projection before `procDraw_` queues the picture.
+Leaving the in-between box installed for the whole draw makes the other draws follow a camera that does not match the logic-step positions.
 Each player's head is a separate model at `PlayerModel+0x11C`.
 `PlayerMgr` stores the four actors at `+0x20`.
 It has one bone and no skeleton uniform.
