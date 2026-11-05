@@ -19,3 +19,13 @@ That string is the root of the sead device named `rdash`.
 `RDashMgr` byte `+0x10` stores the mount result.
 Byte `+0x11` is `isNSLU`.
 A mount result of 0 leaves the eShop prompt on the title.
+
+## Story-map notice
+
+USA 1.3.0 `f_02632418` requests message `SaveData_Rdash_info_00`.
+That message is index 0 in the common-window table at `0x102145B4`.
+The function stores the index at window-task `+0x1A34` and sets byte `+0x1A3C`.
+`f_025D065C` then opens the window.
+`f_02632458` writes `1` to save header byte `+0x8` (`rdash_state`) after the player closes it.
+Europe 1.3.0 has the same request at `0x026324BC`.
+Base discs do not have this function.

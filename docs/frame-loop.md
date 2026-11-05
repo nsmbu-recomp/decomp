@@ -150,9 +150,10 @@ Skinned draws load it with `LoadVertexUniforms` (`0x02AB4C44`) from skeleton+`0x
 Writing the uniform block there changes the next picture only.
 A hold present repeats that list and does not call `calcGPU` again.
 The port records the world matrices at the end of a logic `calcGPU`.
-Before and after the course `procDraw_` it writes this present's matrices, calls `0x02AAAD18` and `0x02AA56F4`, copies the exact world matrices back, and writes this present's camera projection.
+Before the course `procDraw_` it installs this present's camera, calls `0x02AAAD18` and `0x02AA56F4`, copies the exact world matrices back, and writes this present's camera projection.
+The logic view box is restored before `procDraw_` runs.
 The display list keeps the uniform-block address.
-The port then waits for the render thread to copy that picture before `procCalc_` replaces it.
+The port waits for the render thread to copy that picture before another write replaces those uniforms.
 An in-between present uses the halfway pose and the halfway projection for that copy.
 A hold does not call `calcGPU`, so the port rebuilds `ModelEnvView` from that projection before the copy.
 Course tiles do not use that uniform block.
@@ -161,7 +162,9 @@ The course-layer tile draws read the live ortho at `RenderInfo+0x18` and copy to
 `sead::OrthoProjection::setTBLR` (`0x02A06818`) stores those floats, and `Renderer::calcForAreaTask` (`0x024FA76C`) fills them from the renderer view box.
 The port copies the in-between projection into the model uniforms, then writes the logic box back before the rest of the draw.
 The tile projection is copied into the display list at record time, so a later change to the live ortho does not move the ground.
-The port rewrites those recorded matrix words with the in-between projection before `procDraw_` queues the picture.
+The recorded ground matrix matches `OrthoProjectionSync` `mViewProj` at `+0x44` except element 5, the vertical scale, which is negated.
+The tile draw negates top and bottom before `OrthoProjection_syncViewProj` (`0x02A05A9C`).
+The port rewrites those recorded matrix words with the in-between projection before `procDraw_` queues the picture, and it keeps that negated vertical scale.
 Leaving the in-between box installed for the whole draw makes the other draws follow a camera that does not match the logic-step positions.
 Each player's head is a separate model at `PlayerModel+0x11C`.
 `PlayerMgr` stores the four actors at `+0x20`.
