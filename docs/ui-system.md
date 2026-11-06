@@ -154,28 +154,28 @@ Singleton instances for mod memory reads (not hook entry points):
 
 ### Patterns
 
-**1. Overlay beside vanilla UI (works with phase 4 Lua or C++ hooks).**
+**1 — Overlay beside vanilla UI (works with phase 4 Lua or C++ hooks)**
 
 Hook `CommonWindowMgr::draw` (or `CommonWindow::draw`) on **return**.
 Call original, then draw via `nsmbu.Gui` from Lua (today) or a small runtime hook that calls the port overlay API.
 Vanilla pause keeps pad routing; your art stays separate.
 Easiest mod UX; does not look like native `WinText`.
 
-**2. Patch an existing layout (content + light hooks).**
+**2 — Patch an existing layout (content + light hooks)**
 
 Ship a modified `.bflyt` / `.bflan` under `content_dir` on the same archive path the game already loads.
 Hook `AnimLayoutBase::readResource` or `CommonWindow::create` only if you must change which resource name is passed.
 Restart required for `content_dir` map.
 Text still goes through game message IDs unless you replace `TextBox` strings in the layout.
 
-**3. Guest memory beside an active `Multi2D` (advanced, fragile).**
+**3 — Guest memory beside an active `Multi2D` (advanced, fragile)**
 
 On `CommonWindowMgr::execute`, read `CommonWindowMgr::instance()` → embedded `CommonWindow` → `mLayout` at `+0x24` (`AnimLayout` / `Multi2D`).
 Use [AnimLayout.h](../include/layout_sys/AnimLayout.h) offsets and `nsmbu.Guest` (today) to flip pane visibility bytes (see `AttentionScreen::open` setting pane `+0x44` in decomp).
 No new panes unless you also hook `build` or run guest alloc + registration calls via future `nsmbu.Hooks.call`.
 Easy to break on layout updates; prefer hooks on named methods over hard-coded offsets when possible.
 
-**4. Call the same lifecycle as a native screen (future-native custom UI).**
+**4 — Call the same lifecycle as a native screen (future-native custom UI)**
 
 Goal: a mod-owned `AnimLayout` instance participating in draw and pad like `ChangePlayerNum`.
 
@@ -188,7 +188,7 @@ Goal: a mod-owned `AnimLayout` instance participating in draw and pad like `Chan
 This path needs **`nsmbu.Hooks.call`** (or C++ recomp hooks) with stable calling conventions.
 It is not exposed in Lua API v1.
 
-**5. Parallel HUD block (course-style).**
+**5 — Parallel HUD block (course-style)**
 
 Embed or allocate a `Multi2D` / `AnimLayout` and hook a course draw site (`PlayerCourseHud::drawStockItemList` or `Multi2D::draw` on layer `0x1C`).
 Does not block pause.
@@ -219,6 +219,47 @@ end)
 
 Use `onLogicStep` today for `nsmbu.Gui` without touching guest UI.
 Use guest hooks when you need native fonts, layout animation, or GamePad focus.
+
+## World-map start menu (`CourseSelectMenu`)
+
+The overworld start menu is `CourseSelectMenu.bflyt` on the TV and `CourseSelectMenuDL.bflyt` on the GamePad, both in `Common/layout/CourseSelect.szs`.
+Create is `0x025A42CC` (return `0x025A4844`).
+The per-frame function starts at `0x025A4B98` (`mflr` is the first instruction; `0x025A4B9C` is the stack frame).
+It calls `Multi2D::animPlay` at `0x025A4C70` and then returns.
+The destructor is `0x025A4218`.
+
+`PaPaneRegister` stores ten part pointers at `this+0x11E8`, in this order:
+`Pa_SCoinBtn_00`, `Pa_NumBtn_00`, `Pa_SuspendBtn_00`, `Pa_TitleBtn_00`, `Pa_SaveBtn_00`, `Pa_PlayStyleBtn_00`, `Pa_SetUp_00`, `Pa_SetUp_01`, `Pa_Olieve_00`, `Pa_Close_00`.
+
+Under `N_Btn_00` at `(0, 25)`, the top row is local `x = -424, 0, 424` and `y = 114`.
+The bottom row is a centered pair at `y = -114`: Quick Save (`Pa_SuspendBtn_00` and `Pa_SaveBtn_00`, one shown) near `x = -213`, and Main Menu (`Pa_TitleBtn_00`) near `x = 212`.
+The object does not have a sixth button handler.
+`PaCursor` is embedded at `this+0xEC8`.
+The current index is at `PaCursor+0x250`.
+The common pad mask the cursor reads is at `PaCursor+0x164` (`SysController` flags, Right = bit 7, Decide = bit 13, Back = bit 14).
+The menu runs its body when the byte at `this+0x1A04` is non-zero.
+
+The port hooks create, execute, and the destructor, and the layout build that loads this file.
+Before that build parses the layout, a copy of `Pa_TitleBtn_00` is inserted as `Pa_SetBtn_00` at local `(424, -114)`.
+The copy is also added to group `G_InOut_00`.
+When a menu animation file contains `Pa_TitleBtn_00`, the port copies that pane's curves onto `Pa_SetBtn_00`, so the new button uses the same open, close, and button curves.
+The anim parser at `0x02AB702C` already holds the old entry count in r6, and it allocates one slot per count.
+The hook writes the new count into r6 before that allocation.
+`PaMenuBtn` carries a `CursorDecisionButton` control, so the copy joins `PaCursor`'s button list.
+After `animPlay`, Quick Save is placed on `x = -424` and Main Menu on `x = 0`.
+The port keeps that new cursor button enabled.
+After the cursor rebuilds hit rects, the port copies the Change Controller horizontal span onto `Pa_SetBtn_00`.
+Down from Change Controller and right from Main Menu both select that button.
+Up returns to Change Controller, and left returns to Main Menu.
+Down from Number of Players (`Pa_NumBtn_00`) selects Main Menu.
+Up from Main Menu returns to Number of Players.
+Up from Quick Save (`Pa_SuspendBtn_00` or `Pa_SaveBtn_00`) selects Star Coins (`Pa_SCoinBtn_00`).
+While `PaCursor+0x25C` is 0, a window such as Change Controller owns the pad.
+The port leaves the menu cursor on its current button, so Switch to GamePad keeps the cursor.
+Down from Quick Save, Main Menu, or Settings selects the button guide.
+Up from the guide returns to the button that selected it.
+`Pa_SetUp_00` and `Pa_SetUp_01` move to local `y = -348` so the button guide stays below that card and the cursor can still reach it.
+Decide on that cursor button opens the port settings overlay.
 
 ### Pitfalls
 
