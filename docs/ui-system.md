@@ -236,10 +236,16 @@ The bottom row is a centered pair at `y = -114`: Quick Save (`Pa_SuspendBtn_00` 
 The object does not have a sixth button handler.
 `PaCursor` is embedded at `this+0xEC8`.
 The current index is at `PaCursor+0x250`.
-The common pad mask the cursor reads is at `PaCursor+0x164` (`SysController` flags, Right = bit 7, Decide = bit 13, Back = bit 14).
+The common pad mask the cursor reads is at `PaCursor+0x164` (`SysController` flags, Plus = bit 11, Touch = bit 12, Decide = bit 13, Back = bit 14).
+Enter is Plus.
+A is Decide.
 The menu runs its body when the byte at `this+0x1A04` is non-zero.
 
 The port hooks create, execute, and the destructor, and the layout build that loads this file.
+Those hooks stay idle until Settings → Debug → **Settings button on the start menu** is on.
+The option is off by default.
+Open the menu again after turning it on.
+A restart restores the original menu.
 Before that build parses the layout, a copy of `Pa_TitleBtn_00` is inserted as `Pa_SetBtn_00` at local `(424, -114)`.
 The copy is also added to group `G_InOut_00`.
 When a menu animation file contains `Pa_TitleBtn_00`, the port copies that pane's curves onto `Pa_SetBtn_00`, so the new button uses the same open, close, and button curves.
@@ -259,7 +265,8 @@ The port leaves the menu cursor on its current button, so Switch to GamePad keep
 Down from Quick Save, Main Menu, or Settings selects the button guide.
 Up from the guide returns to the button that selected it.
 `Pa_SetUp_00` and `Pa_SetUp_01` move to local `y = -348` so the button guide stays below that card and the cursor can still reach it.
-Decide on that cursor button opens the port settings overlay.
+Decide (A) or Plus (Enter) on that cursor button opens the port settings overlay.
+The port clears those bits before the menu handles them, so the copied Main Menu action does not run.
 
 ### Pitfalls
 
