@@ -226,8 +226,10 @@ The menu runs its body when the byte at `this+0x1A04` is non-zero.
 The port hooks create, execute, and the destructor, and the layout build that loads this file.
 Those hooks stay idle until Settings → Debug → **Settings button on the start menu** is on.
 The option is off by default.
-Open the menu again after turning it on.
+The layout is built when the world map loads, so a change applies on the next visit to the map.
 A restart restores the original menu.
+The load returns the file in r3 and does not leave the file name in a register.
+The port treats that file as this menu when the bytes still contain `Pa_TitleBtn_00` and do not yet contain `Pa_SetBtn_00`.
 Before that build parses the layout, a copy of `Pa_TitleBtn_00` is inserted as `Pa_SetBtn_00` at local `(424, -114)`.
 The copy is also added to group `G_InOut_00`.
 When a menu animation file contains `Pa_TitleBtn_00`, the port copies that pane's curves onto `Pa_SetBtn_00`, so the new button uses the same open, close, and button curves.
@@ -248,7 +250,11 @@ Down from Quick Save, Main Menu, or Settings selects the button guide.
 Up from the guide returns to the button that selected it.
 `Pa_SetUp_00` and `Pa_SetUp_01` move to local `y = -348` so the button guide stays below that card and the cursor can still reach it.
 Decide (A) or Plus (Enter) on that cursor button opens the port settings overlay.
-The port clears those bits before the menu handles them, so the copied Main Menu action does not run.
+The copied button still runs `PaCursor::triggerDecide`.
+A button word other than 0 sets `PaCursor+0x268`, and the next frame `CourseSelectMenu` at `0x025A5420` starts the action for that cursor index when `PaCursor+0x25E` is clear.
+For a few frames after that press the port writes word 0, clears `+0x268`, sets `+0x25E`, and restores pad focus when the decide cleared it.
+The port does not change the cursor state.
+The menu action does not run, and the cursor keeps moving.
 
 ### Pitfalls
 
