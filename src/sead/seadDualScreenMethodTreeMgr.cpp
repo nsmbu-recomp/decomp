@@ -1,7 +1,6 @@
-namespace sead {
+#include <system/DualScreenMethodTreeMgr.h>
 
-class DualScreenMethodTreeMgr;
-class MethodTreeNode;
+namespace sead {
 
 namespace {
 
@@ -11,23 +10,23 @@ void MethodTreeNode_call_(MethodTreeNode* node);
 } // namespace
 
 // Address: 0x029FD944
-void DualScreenMethodTreeMgr_drawTop_(DualScreenMethodTreeMgr* self)
+void DualScreenMethodTreeMgr::drawTop()
 {
-    MethodTreeNode* node = reinterpret_cast<MethodTreeNode*>(reinterpret_cast<u8*>(self) + 0x13C);
+    MethodTreeNode* node = reinterpret_cast<MethodTreeNode*>(reinterpret_cast<u8*>(this) + 0x13C);
     MethodTreeNode_call_(node);
 }
 
 // Address: 0x029FD94C
-void DualScreenMethodTreeMgr_drawBtm_(DualScreenMethodTreeMgr* self)
+void DualScreenMethodTreeMgr::drawBtm()
 {
-    MethodTreeNode* node = reinterpret_cast<MethodTreeNode*>(reinterpret_cast<u8*>(self) + 0x28C);
+    MethodTreeNode* node = reinterpret_cast<MethodTreeNode*>(reinterpret_cast<u8*>(this) + 0x28C);
     MethodTreeNode_call_(node);
 }
 
 // Address: 0x029FD93C
-void DualScreenMethodTreeMgr_calc_(DualScreenMethodTreeMgr* self)
+void DualScreenMethodTreeMgr::calc()
 {
-    MethodTreeNode* node = reinterpret_cast<MethodTreeNode*>(reinterpret_cast<u8*>(self) + 0x40);
+    MethodTreeNode* node = reinterpret_cast<MethodTreeNode*>(reinterpret_cast<u8*>(this) + 0x40);
     MethodTreeNode_call_(node);
 }
 
