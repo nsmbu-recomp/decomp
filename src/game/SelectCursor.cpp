@@ -30,7 +30,52 @@ SelectCursorMiniLayout& miniLayoutRoot(SelectCursor* cursor)
     return *reinterpret_cast<SelectCursorMiniLayout*>(reinterpret_cast<u8*>(cursor) + kMiniLayoutBase);
 }
 
+// Address: 0x02645934
+void selectCursorLayoutSetTarget(SelectCursorLayout* layout, void* button)
+{
+    u8* self = reinterpret_cast<u8*>(layout);
+    *reinterpret_cast<void**>(self + 0xEA0) = button;
+    *reinterpret_cast<u32*>(self + 0xEBC) = 0xFFu;
+    self[0xEC2] = 1;
+    self[0xEC1] = 0;
+}
+
+// Address: 0x02646114
+void selectCursorMiniLayoutSetTarget(SelectCursorMiniLayout* layout, void* button)
+{
+    u8* self = reinterpret_cast<u8*>(layout);
+    *reinterpret_cast<void**>(self + 0xEA0) = button;
+    *reinterpret_cast<u32*>(self + 0xEB8) = 0xFFu;
+    self[0xEBE] = 1;
+    self[0xEBD] = 0;
+}
+
 } // namespace
+
+// Address: 0x024C6744
+void SelectCursor::set(void* button, s32 type, s32)
+{
+    if (button == nullptr)
+        return;
+
+    if (type == 0x18)
+        return;
+
+    if ((type - 0x12) < 4 || type == 9)
+    {
+        if (type < 0x18)
+            selectCursorMiniLayoutSetTarget(&miniLayoutAt(this, type), button);
+        else
+            selectCursorMiniLayoutSetTarget(&miniLayoutRoot(this), button);
+    }
+    else
+    {
+        if (type < 0x18)
+            selectCursorLayoutSetTarget(&layoutAt(this, type), button);
+        else
+            selectCursorLayoutSetTarget(&layoutRoot(this), button);
+    }
+}
 
 // Address: 0x02645CB4
 void SelectCursorMiniLayout::hideIfEnabled()

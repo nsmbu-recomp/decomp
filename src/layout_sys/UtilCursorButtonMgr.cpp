@@ -50,3 +50,12 @@ UtilCursorButtonMgr::UtilCursorButtonMgr()
     p_this[0x31] = 0;
     *reinterpret_cast<u32*>(p_this + 0x2C) = zero;
 }
+
+// Address: 0x02682990
+void UtilCursorButtonMgr::setSelectedButton(void* button)
+{
+    if (mExecStep != 0)
+        return;
+
+    *reinterpret_cast<void**>(reinterpret_cast<u8*>(this) + 0x1C) = button;
+}
