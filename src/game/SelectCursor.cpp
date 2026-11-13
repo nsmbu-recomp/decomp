@@ -109,6 +109,33 @@ void SelectCursorLayout::disable()
     reinterpret_cast<u8*>(this)[0xEC2] = 0;
 }
 
+// Address: 0x024C68C0
+void SelectCursor::pausePlayer(s32 type)
+{
+    u8* high = reinterpret_cast<u8*>(this) + 0x10000u;
+
+    if ((type - 0x12) < 4)
+    {
+        u8* slot = high + static_cast<u32>(type) * 0xEC8u;
+        slot[0x71ED] = 1;
+        return;
+    }
+
+    if (type == 9)
+    {
+        high[0x71ED] = 1;
+        return;
+    }
+
+    if (type == 0x18)
+        return;
+
+    u8* base = reinterpret_cast<u8*>(this) + 0x10u;
+    if (type < 0x18)
+        base += static_cast<u32>(type) * 0xECCu;
+    base[0xEC1] = 1;
+}
+
 // Address: 0x024C67B4
 void SelectCursor::hide(s32 type)
 {

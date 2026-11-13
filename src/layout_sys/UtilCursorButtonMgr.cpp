@@ -59,3 +59,14 @@ void UtilCursorButtonMgr::setSelectedButton(void* button)
 
     *reinterpret_cast<void**>(reinterpret_cast<u8*>(this) + 0x1C) = button;
 }
+
+// Address: 0x026829A4
+void UtilCursorButtonMgr::triggerDecide()
+{
+    u8* self = reinterpret_cast<u8*>(this);
+    if (*reinterpret_cast<u32*>(self + 0x8) != 0)
+        return;
+
+    u32 flags = *reinterpret_cast<u32*>(self + 0x28);
+    *reinterpret_cast<u32*>(self + 0x28) = flags | 4u;
+}
