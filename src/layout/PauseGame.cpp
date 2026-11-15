@@ -60,6 +60,42 @@ constexpr uintptr_t kGuestLayoutPointerOriginY = 0x100D1090u;
 constexpr uintptr_t kGuestSelectCursorInstance = 0x101D17A8u;
 constexpr uintptr_t kGuestPadManager           = 0x101D2E40u;
 constexpr uintptr_t kGuestControllerTable      = 0x101D1614u;
+constexpr uintptr_t kGuestCoursePauseGame      = 0x101D830Cu;
+constexpr uintptr_t kGuestPauseOpenSeMgr       = 0x101E7C84u;
+
+constexpr u32 kCoursePauseSlotLayout           = 0x2Cu;
+constexpr u32 kCoursePauseSlotNode40           = 0x40u;
+constexpr u32 kCoursePauseSlotNode4C           = 0x4Cu;
+constexpr u32 kCoursePauseSlotNode50           = 0x50u;
+constexpr u32 kCoursePauseSlotCourseCalcLatch  = 0x2D69u;
+constexpr u32 kCoursePauseSlotTouchLatch       = 0x2D58u;
+
+constexpr uintptr_t kGuestAnimNameIn           = 0x1020DC80u;
+constexpr uintptr_t kGuestAnimNamePause4       = 0x1020DC88u;
+constexpr uintptr_t kGuestAnimNamePause2       = 0x1020DC90u;
+constexpr uintptr_t kGuestPauseOpenSeName        = 0x100D97D0u;
+constexpr uintptr_t kGuestPauseOpenAnimFrame   = 0x100D97CCu;
+
+// Address: 0x0255E2C0
+extern void sub_0255E2C0(void* course_pause_slot);
+
+// Address: 0x029B5534
+extern void sub_029B5534_(void* mgr, const void* name);
+
+void callLayoutButtonOpenVirtual_(Multi2D* layout)
+{
+    void* host = *reinterpret_cast<void**>(reinterpret_cast<u8*>(layout) + 0x14u);
+    if (host == nullptr)
+        return;
+
+    using OpenFn = void (*)(Multi2D*);
+    OpenFn fn = reinterpret_cast<OpenFn>(
+        *reinterpret_cast<uintptr_t*>(reinterpret_cast<u8*>(host) + 0xBCu));
+    if (fn == nullptr)
+        return;
+
+    fn(layout);
+}
 
 // Address: 0x02513AFC
 extern s32 sub_02513AFC_(void* mgr, s32 player_no);
@@ -646,4 +682,67 @@ void PauseGame_setPlayerPause(PauseGame* pause_game, u32 paused)
     setNodePauseBit(*reinterpret_cast<u8**>(self + kOffsetPlayerNode27C), false);
     callButtonVirtual(button_list, 0x64u, 0);
     callButtonVirtual(button_list, 0x68u, 0);
+}
+
+// Address: 0x0255E794
+void sub_0255E794(void* course_pause_slot)
+{
+    u8* self = reinterpret_cast<u8*>(course_pause_slot);
+
+    sub_0255E2C0(course_pause_slot);
+
+    setNodePauseBit(*reinterpret_cast<u8**>(self + kCoursePauseSlotNode40), true);
+
+    Multi2D* layout = *reinterpret_cast<Multi2D**>(self + kCoursePauseSlotLayout);
+    const sead::SafeString& anim_in = rodata<sead::SafeString>(kGuestAnimNameIn);
+    layout->animStartSetup(0, anim_in, static_cast<nw::lyt::Animator::PlayType>(0));
+
+    void* se_mgr = *reinterpret_cast<void**>(kGuestPauseOpenSeMgr);
+    sub_029B5534_(se_mgr, rodata<void>(kGuestPauseOpenSeName));
+
+    setNodePauseBit(*reinterpret_cast<u8**>(self + kCoursePauseSlotNode4C), true);
+    setNodePauseBit(*reinterpret_cast<u8**>(self + kCoursePauseSlotNode50), true);
+
+    const f32 open_frame = rodata<f32>(kGuestPauseOpenAnimFrame);
+    layout->setAnimFrame(0, open_frame);
+
+    const sead::SafeString& anim_slot4 = rodata<sead::SafeString>(kGuestAnimNamePause4);
+    const sead::SafeString& anim_slot2 = rodata<sead::SafeString>(kGuestAnimNamePause2);
+    layout->animStartSetup(4, anim_slot4, static_cast<nw::lyt::Animator::PlayType>(0));
+    layout->animStartSetup(2, anim_slot2, static_cast<nw::lyt::Animator::PlayType>(0));
+    layout->setAnimFrame(2, open_frame);
+    layout->setAnimFrame(2, open_frame);
+
+    callLayoutButtonOpenVirtual_(layout);
+
+    self[kCoursePauseSlotTouchLatch] = 0;
+    if (self[kCoursePauseSlotCourseCalcLatch] != 0)
+    {
+        PauseGame* pause_game = *reinterpret_cast<PauseGame**>(kGuestCoursePauseGame);
+        PauseGame_setCourseCalcPause(pause_game, 0);
+    }
+
+    self[1] = 0;
+    self[0] = 1;
+}
+
+// Address: 0x0255E988
+void sub_0255E988(void* course_pause_slot)
+{
+    u8* self = reinterpret_cast<u8*>(course_pause_slot);
+
+    if (self[kCoursePauseSlotCourseCalcLatch] != 0)
+    {
+        PauseGame* pause_game = *reinterpret_cast<PauseGame**>(kGuestCoursePauseGame);
+        PauseGame_setCourseCalcPause(pause_game, 1);
+    }
+
+    setNodePauseBit(*reinterpret_cast<u8**>(self + kCoursePauseSlotNode4C), false);
+    setNodePauseBit(*reinterpret_cast<u8**>(self + kCoursePauseSlotNode50), false);
+
+    Multi2D* layout = *reinterpret_cast<Multi2D**>(self + kCoursePauseSlotLayout);
+    const sead::SafeString& anim_in = rodata<sead::SafeString>(kGuestAnimNameIn);
+    layout->reverseAnimeStartSetup(0, anim_in, static_cast<nw::lyt::Animator::PlayType>(0));
+
+    self[0] = 1;
 }
