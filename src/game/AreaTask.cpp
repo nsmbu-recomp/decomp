@@ -170,6 +170,8 @@ void AreaTask::debugDraw(const agl::lyr::RenderInfo& render_info)
 }
 
 // Address: 0x024B814C
+// Site 0x024B814C seeds the directed-open map return. Death reaches this function
+// and does not pass through prepareCourseOutEnter.
 void AreaTask::setCourseOut()
 {
     mIsCourseOut = true;
