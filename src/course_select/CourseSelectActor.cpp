@@ -33,7 +33,14 @@ bool CourseSelectActor::preExecute_()
     return true;
 }
 
+// Address: 0x021B2658
 bool CourseSelectActor::preDraw_()
 {
-    return true;
+    if (!decomp::call<bool>(0x02002F98u, this))
+        return false;
+
+    if ((_d8 & 1) != 0)
+        return false;
+
+    return (_d8 & 2) == 0;
 }
