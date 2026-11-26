@@ -27,6 +27,7 @@ CourseSelectActor::CourseSelectActor(const ActorCreateParam& param)
 {
 }
 
+// Address: 0x021B2528
 bool CourseSelectActor::preExecute_()
 {
     return true;
