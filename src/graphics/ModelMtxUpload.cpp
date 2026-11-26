@@ -23,22 +23,27 @@ namespace {
 // Address: 0x02A059B0
 void OrthoProjection_sync_(OrthoProjectionSync* projection)
 {
-    u8 saved = 0;
-
-    if (projection->mDirty0 != 0)
+    u8* self = reinterpret_cast<u8*>(projection);
+    if (self[0] != 0)
     {
-        OrthoProjectionDelegate* delegate = projection->mpDelegate;
-        delegate->syncParams(projection, projection->mParams);
-        projection->mDirty0 = 0;
-        projection->mDirty1 = 1;
-        delegate->buildViewProj(projection, &projection->mViewProj, projection->mParams, projection->mField84);
-        projection->mDirty1 = saved;
+        u32 delegate = static_cast<u32>(decomp::be32(self + 0x90));
+        u32 sync = static_cast<u32>(decomp::fn_addr(delegate + 0x2Cu));
+        decomp::call<void>(sync, self, self + 4);
+        self[0] = 0;
+        self[1] = 1;
+        delegate = static_cast<u32>(decomp::be32(self + 0x90));
+        u32 build = static_cast<u32>(decomp::fn_addr(delegate + 0x34u));
+        u32 field = static_cast<u32>(decomp::be32(self + 0x84));
+        decomp::call<void>(build, self, self + 0x44, self + 4, reinterpret_cast<void*>(static_cast<uintptr_t>(field)));
+        self[1] = 0;
     }
-    else if (projection->mDirty1 != 0)
+    else if (self[1] != 0)
     {
-        OrthoProjectionDelegate* delegate = projection->mpDelegate;
-        delegate->buildViewProj(projection, &projection->mViewProj, projection->mParams, projection->mField84);
-        projection->mDirty1 = saved;
+        u32 delegate = static_cast<u32>(decomp::be32(self + 0x90));
+        u32 build = static_cast<u32>(decomp::fn_addr(delegate + 0x34u));
+        u32 field = static_cast<u32>(decomp::be32(self + 0x84));
+        decomp::call<void>(build, self, self + 0x44, self + 4, reinterpret_cast<void*>(static_cast<uintptr_t>(field)));
+        self[1] = 0;
     }
 }
 
@@ -48,7 +53,7 @@ void OrthoProjection_sync_(OrthoProjectionSync* projection)
 sead::Matrix44f* OrthoProjection_syncViewProj(OrthoProjectionSync* projection)
 {
     OrthoProjection_sync_(projection);
-    return &projection->mViewProj;
+    return reinterpret_cast<sead::Matrix44f*>(reinterpret_cast<u8*>(projection) + 0x44);
 }
 
 // Address: 0x02AA56EC
@@ -63,8 +68,8 @@ void ModelMtxUpload_uploadShapeBlockMatrices(void* model_ex, s32 view_index)
 {
     u8* self = static_cast<u8*>(model_ex);
     u8* model_obj = static_cast<u8*>(*reinterpret_cast<void**>(self + 0x18));
-    u16& model_flags = *reinterpret_cast<u16*>(model_obj + 4);
-    model_flags = static_cast<u16>(model_flags | 0x10);
+    u16 model_flags = *reinterpret_cast<u16*>(model_obj + 4);
+    *reinterpret_cast<u16*>(model_obj + 4) = static_cast<u16>(model_flags | 0x10);
 
     u16 shape_count = *reinterpret_cast<u16*>(self + 0x14);
     u8* mtx_block_base = static_cast<u8*>(*reinterpret_cast<void**>(model_obj + 0x10));

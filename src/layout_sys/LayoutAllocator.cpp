@@ -2,9 +2,6 @@
 
 namespace {
 
-// Address: 0x101F8040
-constexpr uintptr_t kCurrentHeapSlot = 0x101F8040u;
-
 // Address: 0x02A0D554
 sead::Heap* sub_02A0D554(void* p_heap_mgr);
 
@@ -13,29 +10,26 @@ sead::Heap* sub_02A0D554(void* p_heap_mgr);
 // Address: 0x02679708
 void* LayoutAllocator::Alloc(size_t size, u32 alignment)
 {
-    sead::Heap* heap = mpHeap;
-    uintptr_t vtable = *reinterpret_cast<uintptr_t*>(reinterpret_cast<u8*>(heap) + 0xC);
-    using Fn = void* (*)(sead::Heap*, size_t, u32);
-    Fn fn = reinterpret_cast<Fn>(*reinterpret_cast<uintptr_t*>(vtable + 0x34));
-    return fn(heap, size, alignment);
+    u32 heap = decomp::be32(reinterpret_cast<u8*>(this) + 4);
+    u32 vtable = decomp::be32(heap + 0x0Cu);
+    auto fn = decomp::make_fn<void*, sead::Heap*, size_t, u32>(decomp::fn_addr(vtable + 0x34u));
+    return fn(reinterpret_cast<sead::Heap*>(static_cast<uintptr_t>(heap)), size, alignment);
 }
 
 // Address: 0x0267971C
 void LayoutAllocator::Free(void* memory)
 {
-    sead::Heap* heap = mpHeap;
-    uintptr_t vtable = *reinterpret_cast<uintptr_t*>(reinterpret_cast<u8*>(heap) + 0xC);
-    using Fn = void (*)(sead::Heap*, void*);
-    Fn fn = reinterpret_cast<Fn>(*reinterpret_cast<uintptr_t*>(vtable + 0x3C));
-    fn(heap, memory);
+    u32 heap = decomp::be32(reinterpret_cast<u8*>(this) + 4);
+    u32 vtable = decomp::be32(heap + 0x0Cu);
+    auto fn = decomp::make_fn<void, sead::Heap*, void*>(decomp::fn_addr(vtable + 0x3Cu));
+    fn(reinterpret_cast<sead::Heap*>(static_cast<uintptr_t>(heap)), memory);
 }
 
 // Address: 0x02679730
 void LayoutAllocator::setHeap(sead::Heap* heap)
 {
-    if (heap == nullptr) {
-        void* p_mgr = *reinterpret_cast<void**>(kCurrentHeapSlot);
-        heap = sub_02A0D554(p_mgr);
-    }
-    mpHeap = heap;
+    u32 value = static_cast<u32>(reinterpret_cast<uintptr_t>(heap));
+    if (value == 0)
+        value = static_cast<u32>(reinterpret_cast<uintptr_t>(sub_02A0D554(nullptr)));
+    decomp::be32(reinterpret_cast<u8*>(this) + 4) = value;
 }

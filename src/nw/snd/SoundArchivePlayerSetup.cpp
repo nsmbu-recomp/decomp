@@ -1,3 +1,5 @@
+#include <cstdio>
+
 struct SoundArchivePlayerSetupParams {
     void* archive_slice;
     void* field_04;
@@ -12,7 +14,7 @@ struct SoundArchivePlayerSetupParams {
     void* heap_arg;
 };
 
-constexpr u32 kSoundSetupEnableByte = 0x101E9FD0u;
+constexpr u32 kSoundSetupEnableByte = 0x101E8FD0u;
 
 // Address: 0x02ADF878
 s32 sub_02ADF878(
@@ -26,12 +28,7 @@ s32 sub_02ADF878(
     void* field_1c,
     void* field_20)
 {
-    u8 flag = *reinterpret_cast<u8*>(kSoundSetupEnableByte);
-    if (flag == 0)
-        return 0;
-    if ((reinterpret_cast<uintptr_t>(archive_slice) & 1u) != 0)
-        return 0;
-    return flag;
+    return *reinterpret_cast<u8*>(kSoundSetupEnableByte);
 }
 
 // Address: 0x02ADAE50
@@ -73,12 +70,12 @@ s32 sub_02ADB470(
     u32 size_b,
     void* tail_holder)
 {
-    if ((size_a & 0x4u) == 0)
-    {
-        u32 required = sub_02ADAD00(sound_startable, archive_slice);
-        if (size_b < required)
-            return 0;
-    }
+    if ((size_a & 7u) != 0)
+        return 0;
+
+    u32 required = sub_02ADAD00(sound_startable, archive_slice);
+    if (size_b < required)
+        return 0;
 
     u8 block[0x28] = {};
     if (sub_02AD6CF0(archive_slice, block + 8) == 0)
@@ -107,13 +104,18 @@ s32 sub_02ADB338(
     void** sp_14 = reinterpret_cast<void**>(frame + 0x14);
     void** sp_20 = reinterpret_cast<void**>(frame + 0x20);
 
+    std::fprintf(stderr, "carve cursor=%08x size=%08x holder=%p\n", size_a, size_b, holder);
     *sp8 = size_a;
-    if ((size_a & 0x80000000u) != 0)
+    if ((size_a & 0x1Fu) != 0)
         return 0;
 
     u32 total = size_a + size_b;
     if (sub_02ADAE50(sound_startable, archive_slice, sp8, total) == 0)
+    {
+        std::fprintf(stderr, "carve failed\n");
         return 0;
+    }
+    std::fprintf(stderr, "carve table=%08x\n", static_cast<u32>(decomp::be32(reinterpret_cast<u8*>(sound_startable) + 0x1C)));
 
     if (sub_02AD6CF0(archive_slice, sp_c) == 0)
         return 0;
@@ -138,9 +140,9 @@ s32 sub_02ADB338(
     }
 
     u8* player = reinterpret_cast<u8*>(sound_startable);
-    *reinterpret_cast<u32*>(player + 0xAC) = size_a;
-    *reinterpret_cast<void**>(player + 4) = archive_slice;
-    *reinterpret_cast<void**>(player + 0xB0) = holder;
+    decomp::be32(player + 0xAC) = size_a;
+    decomp::beptr<void*>(player + 4) = archive_slice;
+    decomp::be32(player + 0xB0) = size_b;
     return 1;
 }
 
@@ -148,42 +150,45 @@ s32 sub_02ADB338(
 s32 sub_02ADB530(
     void* sound_startable,
     void* archive_slice,
-    void* field_04,
-    void* buffer_primary,
     void* archive_holder,
-    void* mem_c8,
-    void* buffer_primary_copy,
-    void* mem_dc,
-    void* mem_e0)
+    void* buffer,
+    u32 buffer_size,
+    void* heap_arg,
+    void* mem_d0,
+    u32 combined)
 {
+    std::fprintf(stderr, "setup flag=%u\n", *reinterpret_cast<u8*>(kSoundSetupEnableByte));
     if (sub_02ADF878(
             sound_startable,
             archive_slice,
-            field_04,
-            buffer_primary,
-            archive_holder,
-            mem_c8,
-            buffer_primary_copy,
-            mem_dc,
-            mem_e0) == 0)
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr) == 0)
         return 0;
 
     if (sub_02ADB338(
             sound_startable,
             archive_slice,
-            reinterpret_cast<u32>(buffer_primary),
-            reinterpret_cast<u32>(archive_holder),
-            mem_dc) == 0)
+            static_cast<u32>(reinterpret_cast<uintptr_t>(buffer)),
+            buffer_size,
+            heap_arg) == 0)
         return 0;
 
     if (sub_02ADB470(
             sound_startable,
             archive_slice,
-            reinterpret_cast<u32>(buffer_primary),
-            reinterpret_cast<u32>(archive_holder),
-            mem_e0) == 0)
+            static_cast<u32>(reinterpret_cast<uintptr_t>(mem_d0)),
+            combined,
+            nullptr) == 0)
         return 0;
 
+    u8* player = reinterpret_cast<u8*>(sound_startable);
+    decomp::beptr<void*>(player + 0xB8) = archive_holder;
+    decomp::beptr<void*>(player + 0x80) = player + 0x84;
     return 1;
 }
 
@@ -193,13 +198,12 @@ s32 sub_02ADB634(void* sound_startable, SoundArchivePlayerSetupParams* params)
     s32 ok = sub_02ADB530(
         sound_startable,
         params->archive_slice,
-        params->field_04,
-        params->buffer_primary,
         params->archive_holder,
         params->mem_c8,
-        params->buffer_primary_copy,
-        params->mem_dc,
-        params->mem_e0);
+        static_cast<u32>(reinterpret_cast<uintptr_t>(params->buffer_primary)),
+        params->heap_arg,
+        params->mem_d0,
+        params->combined_offset);
     if (params->mem_d0 == nullptr)
         return ok;
 

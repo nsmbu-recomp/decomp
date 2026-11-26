@@ -1,3 +1,5 @@
+#include <cstdio>
+
 namespace sead {
 
 class HeapMgr;
@@ -41,9 +43,9 @@ void* sub_029F18DC(void* buffer, sead::HeapMgr* heap, u32 alignment);
 // Address: 0x02ADB634
 s32 sub_02ADB634(void* sound_startable, SoundArchivePlayerSetupParams* params);
 
-constexpr u32 kAudioPlayerInitFlag = 0x101F364Cu;
-constexpr u32 kAudioPlayerInitWord = 0x101FBAD4u;
-constexpr u32 kAudioPlayerInitValue = 0x1019D9E0u;
+constexpr u32 kAudioPlayerInitFlag = 0x101E9B0Cu;
+constexpr u32 kAudioPlayerInitWord = 0x101EBAD4u;
+constexpr u32 kAudioPlayerInitValue = 0x1018D9E0u;
 
 // Address: 0x029E6C38
 void sub_029E6C38(
@@ -53,6 +55,7 @@ void sub_029E6C38(
     u32 arg_18,
     sead::HeapMgr* heap)
 {
+    std::fprintf(stderr, "audio setup child=%p\n", child);
     if (child == nullptr)
         return;
 
@@ -113,24 +116,36 @@ void sub_029E6C38(
 void sub_029E8324(void* self)
 {
     u8* bytes = reinterpret_cast<u8*>(self);
+    std::fprintf(
+        stderr,
+        "audio init self=%p r4=%08x lr=%08x\n",
+        self,
+        decomp::guest_gpr(4),
+        decomp::guest_lr());
     void* holder = *reinterpret_cast<void**>(bytes + 0x34);
     void* child = nullptr;
     if (holder != nullptr)
         child = *reinterpret_cast<void**>(reinterpret_cast<u8*>(holder) + 0x18);
 
-    u32* flag = reinterpret_cast<u32*>(kAudioPlayerInitFlag);
-    if (*flag == 0)
+    if (decomp::be32(kAudioPlayerInitFlag) == 0)
     {
-        *flag = 1;
-        *reinterpret_cast<u32*>(kAudioPlayerInitWord) = kAudioPlayerInitValue;
+        decomp::be32(kAudioPlayerInitFlag) = 1;
+        decomp::be32(kAudioPlayerInitWord) = kAudioPlayerInitValue;
     }
 
     if (child != nullptr)
     {
         u32 vtable = *reinterpret_cast<u32*>(child);
+        std::fprintf(
+            stderr,
+            "audio vtable=%08x fn=%08x\n",
+            static_cast<u32>(decomp::be32(child)),
+            decomp::fn_addr(static_cast<u32>(decomp::be32(child)) + 0xCu));
         AudioChildPrecheckFn pre =
             reinterpret_cast<AudioChildPrecheckFn>(*reinterpret_cast<u32*>(vtable + 0xC));
-        if (pre(child) == 0)
+        s32 pre_ok = pre(child);
+        std::fprintf(stderr, "audio child=%p pre=%d\n", child, pre_ok);
+        if (pre_ok == 0)
             child = nullptr;
     }
 

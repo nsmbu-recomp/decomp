@@ -19,7 +19,7 @@ void sub_02A0A2FC(void* p);
 void sub_029F1A50(sead::OffsetList<AttentionLookat>* list, sead::ListNode* node);
 
 // Address: 0x029F1A70
-void sub_029F1A70(sead::OffsetList<AttentionLookat>* list, sead::ListNode* node);
+void sub_029F1A70(void* node);
 
 sead::ListNode* lookatListNode_(AttentionLookat& lookat)
 {
@@ -55,42 +55,37 @@ AttentionMgr::AttentionMgr()
             return;
     }
 
-    *reinterpret_cast<void**>(self + 0x20) = reinterpret_cast<void*>(0x10001364u);
-
-    sead::ListNode* head = reinterpret_cast<sead::ListNode*>(self + 0x10);
-    if (head->mNext == nullptr)
-    {
-        sead::ListNode* node = static_cast<sead::ListNode*>(sub_029F1594(0x10));
-        if (node != nullptr)
-        {
-            node->mNext = node;
-            node->mPrev = node;
-            head->mNext = node;
-            head->mPrev = node;
-            node->mNext = head;
-            node->mPrev = head;
-        }
-    }
-
-    *reinterpret_cast<u32*>(self + 0x1C) = kLookatListNodeOffset;
+    decomp::be32(self + 0x20) = 0x10001364u;
+    u8* node = self + 0x10;
+    decomp::be32(node + 4) = static_cast<u32>(reinterpret_cast<uintptr_t>(node));
+    decomp::be32(node + 0) = static_cast<u32>(reinterpret_cast<uintptr_t>(node));
+    decomp::be32(node + 8) = 0;
+    decomp::be32(node + 0xC) = 0xFFFFFFFFu;
+    decomp::be32(self + 0x1C) = kLookatListNodeOffset;
 }
 
 // Address: 0x0200CC8C
 void AttentionMgr::entry(const AttentionLookat& lookat)
 {
-    sub_029F1A50(&mLookatList, const_cast<sead::ListNode*>(lookatListNode_(lookat)));
-    ++*reinterpret_cast<u32*>(reinterpret_cast<u8*>(this) + 0x18);
+    u8* self = reinterpret_cast<u8*>(this);
+    u32 off = static_cast<u32>(decomp::be32(self + 0x1C));
+    sub_029F1A50(reinterpret_cast<sead::OffsetList<AttentionLookat>*>(self + 0x10),
+                 reinterpret_cast<sead::ListNode*>(reinterpret_cast<u8*>(const_cast<AttentionLookat*>(&lookat)) + off));
+    decomp::be32(self + 0x18) = static_cast<u32>(decomp::be32(self + 0x18)) + 1u;
 }
 
 // Address: 0x0200CCD0
 void AttentionMgr::release(const AttentionLookat& lookat)
 {
-    const sead::ListNode* node = lookatListNode_(lookat);
-    if (node->mNext != nullptr || node->mPrev != nullptr)
-    {
-        sub_029F1A70(&mLookatList, const_cast<sead::ListNode*>(node));
-        --*reinterpret_cast<u32*>(reinterpret_cast<u8*>(this) + 0x18);
-    }
+    u8* self = reinterpret_cast<u8*>(this);
+    u32 off = static_cast<u32>(decomp::be32(self + 0x1C));
+    u8* node = reinterpret_cast<u8*>(const_cast<AttentionLookat*>(&lookat)) + off;
+    u32 next = static_cast<u32>(decomp::be32(node + 4));
+    u32 prev = static_cast<u32>(decomp::be32(node));
+    if (next == 0 && prev == 0)
+        return;
+    sub_029F1A70(node);
+    decomp::be32(self + 0x18) = static_cast<u32>(decomp::be32(self + 0x18)) - 1u;
 }
 
 // Address: 0x0200CD2C
@@ -99,8 +94,8 @@ const AttentionLookat* AttentionMgr::search(const ActorBase& actor_self, const s
     u8* self = reinterpret_cast<u8*>(this);
     const u32 node_offset = *reinterpret_cast<const u32*>(self + 0x1C);
     const AttentionLookat* end = reinterpret_cast<const AttentionLookat*>(self + 0x10 - node_offset);
-    const AttentionLookat* it = reinterpret_cast<const AttentionLookat*>(
-        *reinterpret_cast<const u8* const*>(self + 0x14) - node_offset);
+    u32 first = static_cast<u32>(decomp::be32(self + 0x14));
+    const AttentionLookat* it = reinterpret_cast<const AttentionLookat*>(static_cast<uintptr_t>(first - node_offset));
 
     f32 best_dist_sq = cMaxDistanceSqMax;
     const AttentionLookat* best = nullptr;
@@ -124,8 +119,8 @@ const AttentionLookat* AttentionMgr::search(const ActorBase& actor_self, const s
             }
         }
 
-        const sead::ListNode* node = lookatListNode_(*it);
-        it = reinterpret_cast<const AttentionLookat*>(reinterpret_cast<const u8*>(node->mNext) - node_offset);
+        u32 next = static_cast<u32>(decomp::be32(reinterpret_cast<const u8*>(lookatListNode_(*it)) + 4));
+        it = reinterpret_cast<const AttentionLookat*>(static_cast<uintptr_t>(next - node_offset));
     }
 
     return best;

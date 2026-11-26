@@ -5,9 +5,9 @@
 namespace {
 
 // Address: 0x10214E2C
-s32& gamesceneCoinTextInitFlag()
+s32 gamesceneCoinTextInitFlag()
 {
-    return *reinterpret_cast<s32*>(0x10214E2Cu);
+    return static_cast<s32>(decomp::be32(reinterpret_cast<void*>(0x10214E2Cu)));
 }
 
 // Address: 0x10214E00
@@ -29,7 +29,7 @@ void GamesceneBase::setCoinNumText(s32 coin_num)
 {
     if (gamesceneCoinTextInitFlag() == 0)
     {
-        gamesceneCoinTextInitFlag() = 1;
+        decomp::be32(reinterpret_cast<void*>(0x10214E2Cu)) = 1;
 
         void* table = gamesceneCoinTextTable();
         *reinterpret_cast<u32*>(table) = 0x100D3B74;
