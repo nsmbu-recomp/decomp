@@ -58,3 +58,9 @@ void CourseInfo::setNextSceneEnterType(u32 type)
 {
     decomp::be32(reinterpret_cast<u8*>(this) + 0x20) = type;
 }
+
+// Address: 0x024D3910
+bool CourseInfo::isShortPlay() const
+{
+    return reinterpret_cast<const u8*>(this)[0x11] == 0x2D;
+}
