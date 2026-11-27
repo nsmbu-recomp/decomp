@@ -64,3 +64,9 @@ bool CourseInfo::isShortPlay() const
 {
     return reinterpret_cast<const u8*>(this)[0x11] == 0x2D;
 }
+
+// Address: 0x024D3928
+bool CourseInfo::isStaffCredit() const
+{
+    return reinterpret_cast<const u8*>(this)[0x11] == 0x28;
+}
