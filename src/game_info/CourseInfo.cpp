@@ -52,3 +52,9 @@ void CourseInfo::setNextNextGotoNo(u8 next_goto_no)
 
     mCourseNext.next_goto_no = next_goto_no;
 }
+
+// Address: 0x024D299C
+void CourseInfo::setNextSceneEnterType(u32 type)
+{
+    decomp::be32(reinterpret_cast<u8*>(this) + 0x20) = type;
+}
