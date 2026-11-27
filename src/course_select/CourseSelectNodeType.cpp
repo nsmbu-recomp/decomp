@@ -1,5 +1,11 @@
 #include <course_select/CourseSelectNodeType.h>
 
+// Address: 0x024D37A0
+bool isCourseSelectCourseNo(u8 course_no)
+{
+    return course_no <= 11;
+}
+
 // Address: 0x021EF6C8
 CourseSelectNodeType getCourseSelectNodeType(s32 course_slot)
 {
@@ -8,7 +14,7 @@ CourseSelectNodeType getCourseSelectNodeType(s32 course_slot)
 
     u8 id = static_cast<u8>(course_slot);
 
-    if (decomp::call<bool>(0x024D37A0u, id))
+    if (isCourseSelectCourseNo(id))
         return cCourseSelectNodeType_Course;
 
     if (decomp::call<bool>(0x024D37D4u, id))
