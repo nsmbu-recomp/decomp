@@ -70,3 +70,9 @@ bool CourseInfo::isStaffCredit() const
 {
     return reinterpret_cast<const u8*>(this)[0x11] == 0x28;
 }
+
+// Address: 0x024D3940
+bool CourseInfo::isTitle() const
+{
+    return reinterpret_cast<const u8*>(this)[0x11] == 0x26;
+}
