@@ -8,3 +8,9 @@ CourseSelectObjActor::CourseSelectObjActor(const ActorCreateParam& param)
     , _108(-1)
 {
 }
+
+// Address: 0x02201C70
+s32 CourseSelectObjActor::queryMapStateA()
+{
+    return decomp::call<s32>(0x021F0008u, mMapWorld, mMapCourseSlot, mMapParamF8);
+}
