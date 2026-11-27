@@ -16,3 +16,12 @@ CourseInfo::CourseInfo()
     mCourseNext.next_goto_no = 0xFF;
     mCourseNext.scene_enter_type = 0;
 }
+
+// Address: 0x024D293C
+void CourseInfo::setNextWorldNo(u8 world_no)
+{
+    if (mCourseNext.world_no != mCourseNow.world_no)
+        return;
+
+    mCourseNext.world_no = world_no;
+}
