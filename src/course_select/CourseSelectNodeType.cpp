@@ -30,6 +30,12 @@ bool isCourseSelectCourseNo_22_23(u8 course_no)
     return course_no == 22 || course_no == 23;
 }
 
+// Address: 0x024D382C
+bool isCourseSelectCourseNo_41_42(u8 course_no)
+{
+    return course_no == 41 || course_no == 42;
+}
+
 // Address: 0x021EF6C8
 CourseSelectNodeType getCourseSelectNodeType(s32 course_slot)
 {
@@ -50,7 +56,7 @@ CourseSelectNodeType getCourseSelectNodeType(s32 course_slot)
     if (isCourseSelectCourseNo_22_23(id))
         return cCourseSelectNodeType_3;
 
-    if (decomp::call<bool>(0x024D382Cu, id))
+    if (isCourseSelectCourseNo_41_42(id))
         return cCourseSelectNodeType_7;
 
     if (decomp::call<bool>(0x024D384Cu, id))
