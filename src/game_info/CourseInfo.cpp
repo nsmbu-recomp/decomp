@@ -25,3 +25,12 @@ void CourseInfo::setNextWorldNo(u8 world_no)
 
     mCourseNext.world_no = world_no;
 }
+
+// Address: 0x024D2954
+void CourseInfo::setNextCourseNo(u8 course_no)
+{
+    if (mCourseNext.course_no != mCourseNow.course_no)
+        return;
+
+    mCourseNext.course_no = course_no;
+}
