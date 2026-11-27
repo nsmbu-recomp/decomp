@@ -34,3 +34,12 @@ void CourseInfo::setNextCourseNo(u8 course_no)
 
     mCourseNext.course_no = course_no;
 }
+
+// Address: 0x024D296C
+void CourseInfo::setNextFileNo(u8 file_no)
+{
+    if (mCourseNext.file_no != mCourseNow.file_no)
+        return;
+
+    mCourseNext.file_no = file_no;
+}
