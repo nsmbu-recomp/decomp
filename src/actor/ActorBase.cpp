@@ -1,9 +1,6 @@
 #include <actor/ActorBase.h>
-#include <actor/ActorMgr.h>
 #include <actor/Profile.h>
 #include <event/EventMgr.h>
-
-#include <heap/seadHeapMgr.h>
 
 s32 ActorBase::getProfileID() const
 {
@@ -17,34 +14,10 @@ void ActorBase::removeChild(ActorBase* p_child)
 }
 
 ActorBase::ActorBase(const ActorCreateParam& param)
-    : mpActorHeap(sead::HeapMgr::instance()->getCurrentHeap())
-    , mActorUniqueID(ActorMgr::instance()->mActorCreateID)
-    , mpActorProfile(param.p_profile)
-    , mCreateImmediately(ActorMgr::instance()->mActorCreateImmediately)
-    , _d(param._28 != nullptr)
-    , mIsActive(false)
-    , mDeleteRequestFlag(false)
-    , mParam0(param.param_0)
-    , mParam1(param.param_1)
-    , mParamEx(param.param_ex_1)
-  //, mChildList()
-  //, mChildNode()
-    , mpParent(ActorMgr::instance()->getActorPtr(param.parent_id))
-  //, mExecuteNode()
-  //, mDrawNode()
-  //, mFlag()
 {
-    mChildList.initOffset(offsetof(ActorBase, mChildNode));
-
-    if (mpParent != nullptr)
-    {
-        mpParent->mChildList.pushBack(this);
-    }
-    else
-    {
-        if (param.parent_id.isValid())
-            mDeleteRequestFlag = true;
-    }
+    // Guest vtable lives at +0x4C and the heap pointer at +0. The host body called
+    // sead::HeapMgr::getCurrentHeap, which is not linked in this build.
+    decomp::call<void>(0x02002CE0u, this, &param);
 }
 
 ActorBase::~ActorBase()

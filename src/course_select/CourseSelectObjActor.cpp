@@ -7,6 +7,8 @@ CourseSelectObjActor::CourseSelectObjActor(const ActorCreateParam& param)
     : CourseSelectDemoActor(param)
     , _108(-1)
 {
+    decomp::call<void>(0x02002CE0u, this, &param);
+    decomp::be32(reinterpret_cast<u8*>(this) + 0x4Cu) = 0x10048168u;
 }
 
 // Address: 0x02201C70

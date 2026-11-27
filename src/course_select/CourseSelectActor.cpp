@@ -25,6 +25,10 @@ CourseSelectActor::CourseSelectActor(const ActorCreateParam& param)
     , _d4(0.0f)
     , _d8(0)
 {
+    // The C++ constructor stores a host vtable at +0 after ActorBase returns.
+    // Build the base again and put the CourseSelectActor guest vtable at +0x4C.
+    decomp::call<void>(0x02002CE0u, this, &param);
+    decomp::be32(reinterpret_cast<u8*>(this) + 0x4Cu) = 0x10042DBCu;
 }
 
 // Address: 0x021B2528

@@ -18,4 +18,7 @@ CourseSelectDemoActor::CourseSelectDemoActor(const ActorCreateParam& param)
     mMapCourseSlot = param.param_ex_0.course_select._1;
     _100 = 0;
     _104 = 0;
+
+    decomp::call<void>(0x02002CE0u, this, &param);
+    decomp::be32(reinterpret_cast<u8*>(this) + 0x4Cu) = 0x10044AE0u;
 }
