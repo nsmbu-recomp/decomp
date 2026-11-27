@@ -32,3 +32,9 @@ s32 CourseSelectObjActor::queryMapStateD()
 {
     return decomp::call<s32>(0x021F0690u, mMapWorld, mMapCourseSlot);
 }
+
+// Address: 0x02201CA8
+s32 CourseSelectObjActor::queryMapStateE()
+{
+    return decomp::call<s32>(0x021F071Cu, mMapWorld, mMapCourseSlot);
+}
